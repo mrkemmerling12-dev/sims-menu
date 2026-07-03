@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Игровой уголок</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --sky-top: #BFF3E0;
+    --sky-bottom: #E9FBEF;
+    --plumbob-green: #35C57A;
+    --plumbob-green-dark: #1E9E5E;
+    --sim-blue: #4FB8E8;
+    --sim-purple: #A87BE0;
+    --sim-pink: #F58FB3;
+    --sim-yellow: #FFC94D;
+    --card-bg: #FFFFFF;
+    --ink: #1E4635;
+    --ink-soft: #4C7767;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    font-family: 'Nunito', sans-serif;
+    color: var(--ink);
+    background: linear-gradient(180deg, var(--sky-top) 0%, var(--sky-bottom) 55%, #FFF7E0 100%);
+    overflow-x: hidden;
+  }
+
+  /* Плавающие частицы фона — как искры вокруг симов */
+  .particle {
+    position: fixed;
+    border-radius: 50%;
+    opacity: 0.5;
+    pointer-events: none;
+    animation: float-up linear infinite;
+  }
+  @keyframes float-up {
+    0%   { transform: translateY(0) rotate(0deg); opacity: 0; }
+    10%  { opacity: 0.55; }
+    90%  { opacity: 0.4; }
+    100% { transform: translateY(-110vh) rotate(360deg); opacity: 0; }
+  }
+
+  .wrap {
+    position: relative;
+    z-index: 1;
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 28px 18px 40px;
+    min-height: 100vh;
+  }
+
+  /* Плюмбоб — сигнатурный элемент */
+  .plumbob {
+    width: 46px;
+    height: 46px;
+    margin: 0 auto 6px;
+    background: linear-gradient(135deg, var(--plumbob-green) 0%, #7BE3A6 100%);
+    transform: rotate(45deg);
+    border-radius: 8px;
+    box-shadow: 0 0 0 rgba(53,197,122,0.5);
+    animation: hover-bob 2.6s ease-in-out infinite, glow-pulse 2.6s ease-in-out infinite;
+  }
+  @keyframes hover-bob {
+    0%, 100% { transform: rotate(45deg) translateY(0); }
+    50%      { transform: rotate(45deg) translateY(-10px); }
+  }
+  @keyframes glow-pulse {
+    0%, 100% { box-shadow: 0 10px 18px -6px rgba(53,197,122,0.55); }
+    50%      { box-shadow: 0 22px 30px -8px rgba(53,197,122,0.75); }
+  }
+
+  .title {
+    text-align: center;
+    font-family: 'Baloo 2', sans-serif;
+    font-weight: 800;
+    font-size: 28px;
+    color: var(--ink);
+    margin: 10px 0 2px;
+    letter-spacing: 0.2px;
+  }
+  .subtitle {
+    text-align: center;
+    font-size: 14.5px;
+    color: var(--ink-soft);
+    font-weight: 600;
+    margin: 0 0 26px;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .card {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: var(--card-bg);
+    border-radius: 22px;
+    padding: 16px 18px;
+    text-decoration: none;
+    color: var(--ink);
+    box-shadow: 0 10px 0 rgba(0,0,0,0.05), 0 14px 24px -10px rgba(30,70,53,0.18);
+    border: 3px solid transparent;
+    transform: translateY(0);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    opacity: 0;
+    animation: card-in 0.55s cubic-bezier(0.2,0.9,0.3,1.2) forwards;
+    cursor: pointer;
+  }
+  .card:nth-child(1) { animation-delay: 0.05s; }
+  .card:nth-child(2) { animation-delay: 0.15s; }
+  .card:nth-child(3) { animation-delay: 0.25s; }
+  .card:nth-child(4) { animation-delay: 0.35s; }
+
+  @keyframes card-in {
+    from { opacity: 0; transform: translateY(18px) scale(0.96); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .card:active {
+    transform: translateY(4px) scale(0.98);
+    box-shadow: 0 4px 0 rgba(0,0,0,0.05), 0 6px 14px -6px rgba(30,70,53,0.22);
+  }
+
+  .card.c-green  { border-color: rgba(53,197,122,0.0); }
+  .card.c-green:hover  { border-color: var(--plumbob-green); }
+  .card.c-blue:hover   { border-color: var(--sim-blue); }
+  .card.c-purple:hover { border-color: var(--sim-purple); }
+  .card.c-pink:hover   { border-color: var(--sim-pink); }
+
+  .icon-badge {
+    flex: 0 0 auto;
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    animation: badge-wiggle 3.4s ease-in-out infinite;
+  }
+  .card:nth-child(2) .icon-badge { animation-delay: 0.3s; }
+  .card:nth-child(3) .icon-badge { animation-delay: 0.6s; }
+  .card:nth-child(4) .icon-badge { animation-delay: 0.9s; }
+
+  @keyframes badge-wiggle {
+    0%, 80%, 100% { transform: rotate(0deg); }
+    85% { transform: rotate(-8deg); }
+    92% { transform: rotate(8deg); }
+    96% { transform: rotate(-4deg); }
+  }
+
+  .c-green  .icon-badge { background: linear-gradient(135deg, #BFF3D5, #7BE3A6); }
+  .c-blue   .icon-badge { background: linear-gradient(135deg, #C9EBFB, #8FD6F5); }
+  .c-purple .icon-badge { background: linear-gradient(135deg, #E4D6FA, #C8A9F0); }
+  .c-pink   .icon-badge { background: linear-gradient(135deg, #FCDCE7, #F5AFC6); }
+
+  .card-text { flex: 1 1 auto; min-width: 0; }
+  .card-title {
+    font-family: 'Baloo 2', sans-serif;
+    font-weight: 700;
+    font-size: 17.5px;
+    margin: 0 0 2px;
+  }
+  .card-tag {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    margin-bottom: 4px;
+  }
+  .c-green  .card-tag { background: #E3FAEC; color: var(--plumbob-green-dark); }
+  .c-blue   .card-tag { background: #E4F6FD; color: #1B7FA8; }
+  .c-purple .card-tag { background: #F1E9FD; color: #7647B8; }
+  .c-pink   .card-tag { background: #FDEAF0; color: #C2507A; }
+
+  .card-desc {
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    font-weight: 600;
+    margin: 0;
+    line-height: 1.35;
+  }
+
+  .arrow {
+    flex: 0 0 auto;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: rgba(30,70,53,0.06);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    color: var(--ink-soft);
+  }
+
+  .footer-note {
+    text-align: center;
+    margin-top: 30px;
+    font-size: 11.5px;
+    color: var(--ink-soft);
+    opacity: 0.75;
+    font-weight: 600;
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="plumbob"></div>
+  <h1 class="title">Игровой уголок</h1>
+  <p class="subtitle">Выбери, во что сыграем</p>
+
+  <div class="grid">
+    <a class="card c-green" data-url="https://flappybird.io">
+      <div class="icon-badge">🐤</div>
+      <div class="card-text">
+        <span class="card-tag">Аркада</span>
+        <p class="card-title">Flappy Bird</p>
+        <p class="card-desc">Один тап — и птичка летит. Просто, но затягивает.</p>
+      </div>
+      <div class="arrow">▶</div>
+    </a>
+
+    <a class="card c-blue" data-url="https://www.mathster.com/games/tetris/">
+      <div class="icon-badge">🧱</div>
+      <div class="card-text">
+        <span class="card-tag">Головоломка</span>
+        <p class="card-title">Тетрис</p>
+        <p class="card-desc">Собирай линии, тренируй реакцию и скорость мышления.</p>
+      </div>
+      <div class="arrow">▶</div>
+    </a>
+
+    <a class="card c-purple" data-url="https://playtictactoe.org/">
+      <div class="icon-badge">⭕</div>
+      <div class="card-text">
+        <span class="card-tag">Дуэль умов</span>
+        <p class="card-title">Крестики-Нолики</p>
+        <p class="card-desc">Быстрая партия на смекалку прямо в перерыве.</p>
+      </div>
+      <div class="arrow">▶</div>
+    </a>
+
+    <a class="card c-pink" data-url="https://playsnake.org/">
+      <div class="icon-badge">🐍</div>
+      <div class="card-text">
+        <span class="card-tag">Ретро-классика</span>
+        <p class="card-title">Змейка</p>
+        <p class="card-desc">Собирай яблоки и не кусай себя за хвост.</p>
+      </div>
+      <div class="arrow">▶</div>
+    </a>
+  </div>
+
+  <p class="footer-note">Хорошего перерыва! 🌿</p>
+</div>
+
+<script>
+  // Инициализация Telegram Mini App
+  if (window.Telegram && window.Telegram.WebApp) {
+    Telegram.WebApp.ready();
+    Telegram.WebApp.expand();
+  }
+
+  // Клик по карточке игры — открываем ссылку
+  document.querySelectorAll('.card').forEach(function (card) {
+    card.addEventListener('click', function (e) {
+      e.preventDefault();
+      var url = card.getAttribute('data-url');
+      if (window.Telegram && window.Telegram.WebApp && Telegram.WebApp.openLink) {
+        Telegram.WebApp.openLink(url);
+      } else {
+        window.open(url, '_blank');
+      }
+    });
+  });
+
+  // Фоновые плавающие частицы (декоративная атмосфера)
+  var colors = ['#7BE3A6', '#8FD6F5', '#C8A9F0', '#F5AFC6', '#FFC94D'];
+  var container = document.body;
+  for (var i = 0; i < 18; i++) {
+    var p = document.createElement('div');
+    p.className = 'particle';
+    var size = 4 + Math.random() * 7;
+    p.style.width = size + 'px';
+    p.style.height = size + 'px';
+    p.style.left = Math.random() * 100 + 'vw';
+    p.style.bottom = '-20px';
+    p.style.background = colors[Math.floor(Math.random() * colors.length)];
+    p.style.animationDuration = (9 + Math.random() * 10) + 's';
+    p.style.animationDelay = (Math.random() * 10) + 's';
+    container.appendChild(p);
+  }
+</script>
+
+</body>
+</html>
