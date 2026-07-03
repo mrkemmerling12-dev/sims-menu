@@ -273,7 +273,26 @@
 </div>
 
 <script>
-  // Инициализация Telegram Mini App
-  if (window.Telegram && window.Telegram.WebApp) {
-    Telegram.WebApp.ready();
-    Telegram.WebApp.expa"
+  document.addEventListener("DOMContentLoaded", function() {
+    // Проверяем, что Telegram WebApp SDK доступен
+    if (window.Telegram && window.Telegram.WebApp) {
+      const tg = window.Telegram.WebApp;
+      tg.ready();
+      tg.expand(); // Разворачиваем окно на максимум
+
+      // Находим все карточки на странице
+      const cards = document.querySelectorAll('.card');
+      
+      // Навешиваем на каждую карточку клик через Telegram API
+      cards.forEach(card => {
+        card.addEventListener('click', function(e) {
+          e.preventDefault(); // Отменяем стандартное браузерное поведение
+          const url = this.getAttribute('data-url');
+          if (url) {
+            tg.openLink(url); // Заставляем Telegram открыть игру внутри приложения
+          }
+        });
+      });
+    }
+  });
+</script>
