@@ -274,22 +274,23 @@
 
 <script>
   document.addEventListener("DOMContentLoaded", function() {
-    // Проверяем, что Telegram WebApp SDK доступен
+    // Проверяем наличие Telegram SDK
     if (window.Telegram && window.Telegram.WebApp) {
       const tg = window.Telegram.WebApp;
       tg.ready();
-      tg.expand(); // Разворачиваем окно на максимум
+      tg.expand(); // Разворачиваем приложение на весь экран
 
       // Находим все карточки на странице
       const cards = document.querySelectorAll('.card');
       
-      // Навешиваем на каждую карточку клик через Telegram API
       cards.forEach(card => {
         card.addEventListener('click', function(e) {
-          e.preventDefault(); // Отменяем стандартное браузерное поведение
+          e.preventDefault(); // Защита от стандартных переходов
+          
           const url = this.getAttribute('data-url');
           if (url) {
-            tg.openLink(url); // Заставляем Telegram открыть игру внутри приложения
+            // Передаем настройки, чтобы ссылка открывалась во встроенном браузере Telegram
+            tg.openLink(url, { try_instant_view: true });
           }
         });
       });
