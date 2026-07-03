@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+"<!DOCTYPE html>
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
@@ -253,7 +253,7 @@
       <div class="card-text">
         <span class="card-tag">Дуэль умов</span>
         <p class="card-title">Крестики-Нолики</p>
-        <p class="card-desc">Быстая партия на смекалку прямо в перерыве.</p>
+        <p class="card-desc">Быстрая партия на смекалку прямо в перерыве.</p>
       </div>
       <div class="arrow">▶</div>
     </a>
@@ -273,42 +273,7 @@
 </div>
 
 <script>
-  document.addEventListener("DOMContentLoaded", function() {
-    // Инициализация Telegram Mini App
-    if (window.Telegram && window.Telegram.WebApp) {
-      const tg = window.Telegram.WebApp;
-      tg.ready();
-      tg.expand(); // Разворачиваем на весь экран
-      
-      // Обработка кликов на карточки через API Telegram
-      const cards = document.querySelectorAll('.card');
-      cards.forEach(card => {
-        card.addEventListener('click', function(e) {
-          e.preventDefault();
-          const url = this.getAttribute('data-url');
-          if (url) {
-            tg.openLink(url); // Открываем игры внутри контейнера Telegram
-          }
-        });
-      });
-    }
-
-    // Генерация плавающих симовских частиц на фоне
-    const colors = ['#35C57A', '#4FB8E8', '#A87BE0', '#F58FB3', '#FFC94D'];
-    for (let i = 0; i < 15; i++) {
-      const p = document.createElement('div');
-      p.className = 'particle';
-      const size = Math.random() * 6 + 4;
-      p.style.width = size + 'px';
-      p.style.height = size + 'px';
-      p.style.background = colors[Math.floor(Math.random() * colors.length)];
-      p.style.left = Math.random() * 100 + 'vw';
-      p.style.top = (Math.random() * 100 + 100) + 'vh';
-      p.style.animationDuration = (Math.random() * 6 + 6) + 's';
-      p.style.animationDelay = (Math.random() * 5) + 's';
-      document.body.appendChild(p);
-    }
-  });
-</script>
-</body>
-</html>
+  // Инициализация Telegram Mini App
+  if (window.Telegram && window.Telegram.WebApp) {
+    Telegram.WebApp.ready();
+    Telegram.WebApp.expa"
