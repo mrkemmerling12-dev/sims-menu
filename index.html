@@ -253,7 +253,7 @@
       <div class="card-text">
         <span class="card-tag">Дуэль умов</span>
         <p class="card-title">Крестики-Нолики</p>
-        <p class="card-desc">Быстрая партия на смекалку прямо в перерыве.</p>
+        <p class="card-desc">Быстая партия на смекалку прямо в перерыве.</p>
       </div>
       <div class="arrow">▶</div>
     </a>
@@ -273,42 +273,42 @@
 </div>
 
 <script>
-  // Инициализация Telegram Mini App
-  if (window.Telegram && window.Telegram.WebApp) {
-    Telegram.WebApp.ready();
-    Telegram.WebApp.expand();
-  }
+  document.addEventListener("DOMContentLoaded", function() {
+    // Инициализация Telegram Mini App
+    if (window.Telegram && window.Telegram.WebApp) {
+      const tg = window.Telegram.WebApp;
+      tg.ready();
+      tg.expand(); // Разворачиваем на весь экран
+      
+      // Обработка кликов на карточки через API Telegram
+      const cards = document.querySelectorAll('.card');
+      cards.forEach(card => {
+        card.addEventListener('click', function(e) {
+          e.preventDefault();
+          const url = this.getAttribute('data-url');
+          if (url) {
+            tg.openLink(url); // Открываем игры внутри контейнера Telegram
+          }
+        });
+      });
+    }
 
-  // Клик по карточке игры — открываем ссылку
-  document.querySelectorAll('.card').forEach(function (card) {
-    card.addEventListener('click', function (e) {
-      e.preventDefault();
-      var url = card.getAttribute('data-url');
-      if (window.Telegram && window.Telegram.WebApp && Telegram.WebApp.openLink) {
-        Telegram.WebApp.openLink(url);
-      } else {
-        window.open(url, '_blank');
-      }
-    });
+    // Генерация плавающих симовских частиц на фоне
+    const colors = ['#35C57A', '#4FB8E8', '#A87BE0', '#F58FB3', '#FFC94D'];
+    for (let i = 0; i < 15; i++) {
+      const p = document.createElement('div');
+      p.className = 'particle';
+      const size = Math.random() * 6 + 4;
+      p.style.width = size + 'px';
+      p.style.height = size + 'px';
+      p.style.background = colors[Math.floor(Math.random() * colors.length)];
+      p.style.left = Math.random() * 100 + 'vw';
+      p.style.top = (Math.random() * 100 + 100) + 'vh';
+      p.style.animationDuration = (Math.random() * 6 + 6) + 's';
+      p.style.animationDelay = (Math.random() * 5) + 's';
+      document.body.appendChild(p);
+    }
   });
-
-  // Фоновые плавающие частицы (декоративная атмосфера)
-  var colors = ['#7BE3A6', '#8FD6F5', '#C8A9F0', '#F5AFC6', '#FFC94D'];
-  var container = document.body;
-  for (var i = 0; i < 18; i++) {
-    var p = document.createElement('div');
-    p.className = 'particle';
-    var size = 4 + Math.random() * 7;
-    p.style.width = size + 'px';
-    p.style.height = size + 'px';
-    p.style.left = Math.random() * 100 + 'vw';
-    p.style.bottom = '-20px';
-    p.style.background = colors[Math.floor(Math.random() * colors.length)];
-    p.style.animationDuration = (9 + Math.random() * 10) + 's';
-    p.style.animationDelay = (Math.random() * 10) + 's';
-    container.appendChild(p);
-  }
 </script>
-
 </body>
 </html>
