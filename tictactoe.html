@@ -8,30 +8,28 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --sky-top:#BFF3E0; --sky-bottom:#E9FBEF;
-    --ink:#1E4635; --ink-soft:#4C7767;
-    --purple:#A87BE0; --purple-dark:#7647B8;
-    --card-bg:#FFFFFF;
-  }
+  :root{--ink:#1E4635;--ink-soft:#4C7767;--purple:#A87BE0;--purple-dark:#7647B8;--card-bg:#FFFFFF;}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;}
   html,body{margin:0;padding:0;min-height:100%;font-family:'Nunito',sans-serif;color:var(--ink);
-    background:linear-gradient(180deg,var(--sky-top) 0%,var(--sky-bottom) 55%,#FFF7E0 100%);}
+    background:linear-gradient(180deg,#BFF3E0 0%,#E9FBEF 55%,#FFF7E0 100%);}
   .wrap{max-width:420px;margin:0 auto;padding:24px 18px 30px;text-align:center;}
-  .plumbob{width:34px;height:34px;margin:0 auto 6px;background:linear-gradient(135deg,var(--purple) 0%,#D6BFF5 100%);
-    transform:rotate(45deg);border-radius:6px;box-shadow:0 10px 18px -6px rgba(118,71,184,0.5);
-    animation:hover-bob 2.6s ease-in-out infinite;}
-  @keyframes hover-bob{0%,100%{transform:rotate(45deg) translateY(0);}50%{transform:rotate(45deg) translateY(-8px);}}
+  .back-btn{position:fixed;top:14px;left:14px;width:40px;height:40px;border-radius:50%;background:var(--card-bg);
+    display:flex;align-items:center;justify-content:center;font-size:18px;text-decoration:none;color:var(--ink);
+    box-shadow:0 6px 0 rgba(0,0,0,0.06),0 8px 14px -6px rgba(30,70,53,0.25);z-index:20;}
+  .back-btn:active{transform:translateY(3px);box-shadow:0 3px 0 rgba(0,0,0,0.06);}
   h1{font-family:'Baloo 2',sans-serif;font-weight:800;font-size:24px;margin:2px 0 4px;}
-  .status{font-weight:700;color:var(--ink-soft);margin-bottom:18px;font-size:15px;}
+  .status{font-weight:700;color:var(--ink-soft);margin-bottom:18px;font-size:15px;min-height:20px;}
   .score-row{display:flex;justify-content:center;gap:10px;margin-bottom:18px;flex-wrap:wrap;}
   .pill{background:#F1E9FD;color:var(--purple-dark);font-family:'Baloo 2',sans-serif;font-weight:700;
     padding:6px 14px;border-radius:20px;font-size:14px;}
-  .board{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:300px;margin:0 auto;}
+  .board{position:relative;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:300px;margin:0 auto;}
   .cell{aspect-ratio:1/1;background:var(--card-bg);border-radius:18px;display:flex;align-items:center;justify-content:center;
-    font-size:44px;font-family:'Baloo 2',sans-serif;font-weight:800;
-    box-shadow:0 8px 0 rgba(0,0,0,0.05),0 10px 18px -8px rgba(30,70,53,0.2);}
+    font-size:44px;font-family:'Baloo 2',sans-serif;font-weight:800;position:relative;overflow:hidden;
+    box-shadow:0 8px 0 rgba(0,0,0,0.05),0 10px 18px -8px rgba(30,70,53,0.2);transition:box-shadow 0.2s;}
   .cell.x{color:var(--purple-dark);} .cell.o{color:#F58FB3;}
+  .cell.win{box-shadow:0 0 0 3px var(--purple-dark), 0 10px 18px -8px rgba(30,70,53,0.2);}
+  .cell span{display:inline-block;animation:pop-in 0.28s cubic-bezier(0.3,1.4,0.5,1) forwards;}
+  @keyframes pop-in{from{transform:scale(0) rotate(-15deg);opacity:0;}to{transform:scale(1) rotate(0);opacity:1;}}
   .cell:active{transform:translateY(3px);}
   .btn-row{margin-top:22px;display:flex;justify-content:center;gap:10px;flex-wrap:wrap;}
   .btn-main{background:linear-gradient(135deg,var(--purple),#D6BFF5);border:none;color:#fff;font-family:'Baloo 2',sans-serif;
@@ -42,8 +40,8 @@
 </style>
 </head>
 <body>
+<a class="back-btn" href="index.html">⬅️</a>
 <div class="wrap">
-  <div class="plumbob"></div>
   <h1>❌⭕ Крестики-Нолики</h1>
   <div class="status" id="status">Ход игрока Х</div>
   <div class="score-row">
@@ -70,29 +68,30 @@ let scores={X:0,O:0,D:0};
 
 const wins=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
 
-function render(){
+function render(winLine){
   boardEl.innerHTML='';
   cells.forEach((v,i)=>{
     const d=document.createElement('div');
-    d.className='cell'+(v==='X'?' x':v==='O'?' o':'');
-    d.textContent=v||'';
+    d.className='cell'+(v==='X'?' x':v==='O'?' o':'')+(winLine&&winLine.includes(i)?' win':'');
+    if(v) d.innerHTML=`<span>${v==='X'?'❌':'⭕'}</span>`;
     d.onclick=()=>play(i);
     boardEl.appendChild(d);
   });
 }
 function checkWinner(){
-  for(const [a,b,c] of wins){
-    if(cells[a] && cells[a]===cells[b] && cells[b]===cells[c]) return cells[a];
+  for(const line of wins){
+    const [a,b,c]=line;
+    if(cells[a] && cells[a]===cells[b] && cells[b]===cells[c]) return {winner:cells[a],line};
   }
-  if(cells.every(c=>c)) return 'D';
+  if(cells.every(c=>c)) return {winner:'D',line:null};
   return null;
 }
 function play(i){
   if(over || cells[i]) return;
   cells[i]=turn;
   render();
-  const w=checkWinner();
-  if(w){ finish(w); return; }
+  const res=checkWinner();
+  if(res){ finish(res); return; }
   turn = turn==='X' ? 'O' : 'X';
   statusEl.textContent = 'Ход игрока '+turn;
   if(vsBot && turn==='O' && !over) setTimeout(botMove,400);
@@ -117,10 +116,12 @@ function findBestMove(){
   const empty=cells.map((v,i)=>v?null:i).filter(i=>i!==null);
   return empty.length ? empty[Math.floor(Math.random()*empty.length)] : -1;
 }
-function finish(w){
+function finish(res){
   over=true;
-  if(w==='D'){ scores.D++; statusEl.textContent='Ничья! 🤝'; }
-  else { scores[w]++; statusEl.textContent = (w==='X'?'Х':'О') + ' победил! 🎉'; }
+  const {winner,line}=res;
+  if(winner==='D'){ scores.D++; statusEl.textContent='Ничья! 🤝'; }
+  else { scores[winner]++; statusEl.textContent = (winner==='X'?'Х':'О') + ' победил! 🎉'; }
+  render(line);
   document.getElementById('scoreX').textContent='Х: '+scores.X;
   document.getElementById('scoreO').textContent='О: '+scores.O;
   document.getElementById('scoreD').textContent='Ничьи: '+scores.D;
