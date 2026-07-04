@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Тетрис</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{--sky-top:#BFF3E0;--sky-bottom:#E9FBEF;--ink:#1E4635;--ink-soft:#4C7767;
+    --blue:#4FB8E8;--blue-dark:#1B7FA8;--card-bg:#FFFFFF;}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;}
+  html,body{margin:0;padding:0;height:100%;font-family:'Nunito',sans-serif;color:var(--ink);
+    background:linear-gradient(180deg,var(--sky-top) 0%,var(--sky-bottom) 55%,#FFF7E0 100%);overflow:hidden;}
+  .wrap{max-width:480px;margin:0 auto;padding:12px 14px 8px;display:flex;flex-direction:column;height:100vh;}
+  .plumbob{width:28px;height:28px;margin:0 auto 4px;background:linear-gradient(135deg,var(--blue) 0%,#A9DFF6 100%);
+    transform:rotate(45deg);border-radius:6px;box-shadow:0 10px 18px -6px rgba(27,127,168,0.5);
+    animation:hover-bob 2.6s ease-in-out infinite;}
+  @keyframes hover-bob{0%,100%{transform:rotate(45deg) translateY(0);}50%{transform:rotate(45deg) translateY(-8px);}}
+  h1{font-family:'Baloo 2',sans-serif;font-weight:800;font-size:19px;text-align:center;margin:2px 0 4px;}
+  .hud{display:flex;justify-content:center;gap:10px;margin-bottom:6px;}
+  .pill{background:#E4F6FD;color:var(--blue-dark);font-family:'Baloo 2',sans-serif;font-weight:700;
+    padding:4px 12px;border-radius:20px;font-size:13px;}
+  .board-holder{flex:1;display:flex;align-items:center;justify-content:center;min-height:0;}
+  canvas{background:var(--card-bg);border-radius:14px;box-shadow:0 14px 24px -10px rgba(30,70,53,0.25);max-height:100%;}
+  .controls{display:flex;justify-content:center;gap:8px;margin:10px 0 4px;}
+  .ctrl-btn{background:var(--card-bg);border:none;border-radius:14px;font-size:20px;color:var(--ink);
+    width:52px;height:52px;box-shadow:0 6px 0 rgba(0,0,0,0.06),0 8px 14px -6px rgba(30,70,53,0.2);}
+  .ctrl-btn:active{transform:translateY(3px);box-shadow:0 3px 0 rgba(0,0,0,0.06);}
+  .overlay{position:fixed;inset:0;background:rgba(30,70,53,0.55);display:none;align-items:center;justify-content:center;z-index:10;}
+  .overlay.show{display:flex;}
+  .modal{background:var(--card-bg);border-radius:22px;padding:26px 24px;text-align:center;max-width:280px;
+    box-shadow:0 20px 40px -10px rgba(0,0,0,0.35);}
+  .modal h2{font-family:'Baloo 2',sans-serif;margin:0 0 8px;font-size:22px;color:var(--blue-dark);}
+  .modal p{font-weight:700;color:var(--ink-soft);margin:0 0 16px;}
+  .btn-main{background:linear-gradient(135deg,var(--blue),#A9DFF6);border:none;color:#fff;font-family:'Baloo 2',sans-serif;
+    font-weight:700;font-size:16px;padding:12px 26px;border-radius:16px;box-shadow:0 8px 0 var(--blue-dark);}
+  .btn-main:active{transform:translateY(4px);box-shadow:0 4px 0 var(--blue-dark);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="plumbob"></div>
+  <h1>🧱 Тетрис</h1>
+  <div class="hud">
+    <div class="pill" id="score">Очки: 0</div>
+    <div class="pill" id="lines">Линии: 0</div>
+  </div>
+  <div class="board-holder"><canvas id="board" width="240" height="440"></canvas></div>
+  <div class="controls">
+    <button class="ctrl-btn" id="left">⬅️</button>
+    <button class="ctrl-btn" id="rotate">🔄</button>
+    <button class="ctrl-btn" id="down">⬇️</button>
+    <button class="ctrl-btn" id="right">➡️</button>
+  </div>
+</div>
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h2>Игра окончена 🧱</h2>
+    <p id="finalScore">Очки: 0</p>
+    <button class="btn-main" id="restart">Сыграть ещё</button>
+  </div>
+</div>
+<script>
+if(window.Telegram && window.Telegram.WebApp){window.Telegram.WebApp.ready();window.Telegram.WebApp.expand();}
+
+const cols=10, rows=20, cell=24;
+const canvas=document.getElementById('board');
+const ctx=canvas.getContext('2d');
+let grid, current, score, lines, alive, dropCounter, dropInterval, lastTime;
+
+const COLORS={
+  I:'#4FB8E8', J:'#3A6FDE', L:'#FFA940', O:'#FFC94D',
+  S:'#35C57A', T:'#A87BE0', Z:'#F58FB3'
+};
+const SHAPES={
+  I:[[1,1,1,1]],
+  J:[[1,0,0],[1,1,1]],
+  L:[[0,0,1],[1,1,1]],
+  O:[[1,1],[1,1]],
+  S:[[0,1,1],[1,1,0]],
+  T:[[0,1,0],[1,1,1]],
+  Z:[[1,1,0],[0,1,1]]
+};
+
+function emptyGrid(){ return Array.from({length:rows},()=>Array(cols).fill(null)); }
+
+function newPiece(){
+  const keys=Object.keys(SHAPES);
+  const k=keys[Math.floor(Math.random()*keys.length)];
+  const shape=SHAPES[k].map(r=>r.slice());
+  return {shape, color:COLORS[k], x:Math.floor(cols/2)-Math.ceil(shape[0].length/2), y:0};
+}
+function rotate(matrix){
+  const N=matrix.length, M=matrix[0].length;
+  const res=Array.from({length:M},()=>Array(N).fill(0));
+  for(let r=0;r<N;r++) for(let c=0;c<M;c++) res[c][N-1-r]=matrix[r][c];
+  return res;
+}
+function collide(px,py,shape){
+  for(let r=0;r<shape.length;r++){
+    for(let c=0;c<shape[r].length;c++){
+      if(!shape[r][c]) continue;
+      const x=px+c, y=py+r;
+      if(x<0||x>=cols||y>=rows) return true;
+      if(y>=0 && grid[y][x]) return true;
+    }
+  }
+  return false;
+}
+function merge(){
+  const {shape,color,x,y}=current;
+  shape.forEach((row,r)=>row.forEach((v,c)=>{
+    if(v && y+r>=0) grid[y+r][x+c]=color;
+  }));
+}
+function clearLines(){
+  let cleared=0;
+  for(let r=rows-1;r>=0;r--){
+    if(grid[r].every(v=>v)){
+      grid.splice(r,1); grid.unshift(Array(cols).fill(null));
+      cleared++; r++;
+    }
+  }
+  if(cleared){
+    const points=[0,100,300,500,800][cleared]||1000;
+    score+=points; lines+=cleared;
+    document.getElementById('score').textContent='Очки: '+score;
+    document.getElementById('lines').textContent='Линии: '+lines;
+    dropInterval=Math.max(180, 700-lines*20);
+  }
+}
+function drop(){
+  if(!collide(current.x,current.y+1,current.shape)){
+    current.y++;
+  } else {
+    merge();
+    clearLines();
+    current=newPiece();
+    if(collide(current.x,current.y,current.shape)) gameOver();
+  }
+  dropCounter=0;
+}
+function move(dx){
+  if(!collide(current.x+dx,current.y,current.shape)) current.x+=dx;
+}
+function doRotate(){
+  const rotated=rotate(current.shape);
+  let kick=0;
+  if(collide(current.x,current.y,rotated)){
+    kick = (current.x+rotated[0].length>cols) ? -1 : 1;
+  }
+  if(!collide(current.x+kick,current.y,rotated)){
+    current.shape=rotated; current.x+=kick;
+  }
+}
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle='#F5FBFF'; ctx.fillRect(0,0,canvas.width,canvas.height);
+  for(let r=0;r<rows;r++){
+    for(let c=0;c<cols;c++){
+      if(grid[r][c]) drawCell(c,r,grid[r][c]);
+    }
+  }
+  current.shape.forEach((row,r)=>row.forEach((v,c)=>{
+    if(v) drawCell(current.x+c,current.y+r,current.color);
+  }));
+}
+function drawCell(x,y,color){
+  ctx.fillStyle=color;
+  ctx.fillRect(x*cell+1,y*cell+1,cell-2,cell-2);
+}
+function gameOver(){
+  alive=false;
+  document.getElementById('finalScore').textContent='Очки: '+score;
+  document.getElementById('overlay').classList.add('show');
+}
+function loop(time=0){
+  if(!alive) return;
+  const delta=time-lastTime; lastTime=time;
+  dropCounter+=delta;
+  if(dropCounter>dropInterval) drop();
+  draw();
+  requestAnimationFrame(loop);
+}
+function reset(){
+  grid=emptyGrid(); score=0; lines=0; alive=true;
+  dropCounter=0; dropInterval=700; lastTime=0;
+  document.getElementById('score').textContent='Очки: 0';
+  document.getElementById('lines').textContent='Линии: 0';
+  document.getElementById('overlay').classList.remove('show');
+  current=newPiece();
+  requestAnimationFrame(loop);
+}
+document.getElementById('left').onclick=()=>move(-1);
+document.getElementById('right').onclick=()=>move(1);
+document.getElementById('down').onclick=drop;
+document.getElementById('rotate').onclick=doRotate;
+document.getElementById('restart').onclick=reset;
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowLeft') move(-1);
+  if(e.key==='ArrowRight') move(1);
+  if(e.key==='ArrowDown') drop();
+  if(e.key==='ArrowUp') doRotate();
+});
+let touchStartX=0, touchStartY=0, touchMoved=false;
+canvas.addEventListener('touchstart',e=>{
+  touchStartX=e.touches[0].clientX; touchStartY=e.touches[0].clientY; touchMoved=false;
+},{passive:true});
+canvas.addEventListener('touchmove',e=>{
+  const dx=e.touches[0].clientX-touchStartX;
+  if(Math.abs(dx)>28){ move(dx>0?1:-1); touchStartX=e.touches[0].clientX; touchMoved=true; }
+},{passive:true});
+canvas.addEventListener('touchend',e=>{
+  const dy=e.changedTouches[0].clientY-touchStartY;
+  if(!touchMoved){ if(dy>40) drop(); else doRotate(); }
+},{passive:true});
+reset();
+</script>
+</body>
+</html>

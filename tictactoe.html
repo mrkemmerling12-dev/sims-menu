@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Крестики-Нолики</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --sky-top:#BFF3E0; --sky-bottom:#E9FBEF;
+    --ink:#1E4635; --ink-soft:#4C7767;
+    --purple:#A87BE0; --purple-dark:#7647B8;
+    --card-bg:#FFFFFF;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;}
+  html,body{margin:0;padding:0;min-height:100%;font-family:'Nunito',sans-serif;color:var(--ink);
+    background:linear-gradient(180deg,var(--sky-top) 0%,var(--sky-bottom) 55%,#FFF7E0 100%);}
+  .wrap{max-width:420px;margin:0 auto;padding:24px 18px 30px;text-align:center;}
+  .plumbob{width:34px;height:34px;margin:0 auto 6px;background:linear-gradient(135deg,var(--purple) 0%,#D6BFF5 100%);
+    transform:rotate(45deg);border-radius:6px;box-shadow:0 10px 18px -6px rgba(118,71,184,0.5);
+    animation:hover-bob 2.6s ease-in-out infinite;}
+  @keyframes hover-bob{0%,100%{transform:rotate(45deg) translateY(0);}50%{transform:rotate(45deg) translateY(-8px);}}
+  h1{font-family:'Baloo 2',sans-serif;font-weight:800;font-size:24px;margin:2px 0 4px;}
+  .status{font-weight:700;color:var(--ink-soft);margin-bottom:18px;font-size:15px;}
+  .score-row{display:flex;justify-content:center;gap:10px;margin-bottom:18px;flex-wrap:wrap;}
+  .pill{background:#F1E9FD;color:var(--purple-dark);font-family:'Baloo 2',sans-serif;font-weight:700;
+    padding:6px 14px;border-radius:20px;font-size:14px;}
+  .board{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:300px;margin:0 auto;}
+  .cell{aspect-ratio:1/1;background:var(--card-bg);border-radius:18px;display:flex;align-items:center;justify-content:center;
+    font-size:44px;font-family:'Baloo 2',sans-serif;font-weight:800;
+    box-shadow:0 8px 0 rgba(0,0,0,0.05),0 10px 18px -8px rgba(30,70,53,0.2);}
+  .cell.x{color:var(--purple-dark);} .cell.o{color:#F58FB3;}
+  .cell:active{transform:translateY(3px);}
+  .btn-row{margin-top:22px;display:flex;justify-content:center;gap:10px;flex-wrap:wrap;}
+  .btn-main{background:linear-gradient(135deg,var(--purple),#D6BFF5);border:none;color:#fff;font-family:'Baloo 2',sans-serif;
+    font-weight:700;font-size:15px;padding:11px 20px;border-radius:16px;box-shadow:0 7px 0 var(--purple-dark);}
+  .btn-main:active{transform:translateY(3px);box-shadow:0 4px 0 var(--purple-dark);}
+  .btn-secondary{background:#fff;color:var(--purple-dark);border:2px solid var(--purple);font-family:'Baloo 2',sans-serif;
+    font-weight:700;font-size:15px;padding:9px 18px;border-radius:16px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="plumbob"></div>
+  <h1>❌⭕ Крестики-Нолики</h1>
+  <div class="status" id="status">Ход игрока Х</div>
+  <div class="score-row">
+    <div class="pill" id="scoreX">Х: 0</div>
+    <div class="pill" id="scoreO">О: 0</div>
+    <div class="pill" id="scoreD">Ничьи: 0</div>
+  </div>
+  <div class="board" id="board"></div>
+  <div class="btn-row">
+    <button class="btn-main" id="newRound">Новый раунд</button>
+    <button class="btn-secondary" id="mode">Режим: 2 игрока</button>
+  </div>
+</div>
+<script>
+if(window.Telegram && window.Telegram.WebApp){window.Telegram.WebApp.ready();window.Telegram.WebApp.expand();}
+
+const boardEl=document.getElementById('board');
+const statusEl=document.getElementById('status');
+let cells=Array(9).fill(null);
+let turn='X';
+let over=false;
+let vsBot=false;
+let scores={X:0,O:0,D:0};
+
+const wins=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+
+function render(){
+  boardEl.innerHTML='';
+  cells.forEach((v,i)=>{
+    const d=document.createElement('div');
+    d.className='cell'+(v==='X'?' x':v==='O'?' o':'');
+    d.textContent=v||'';
+    d.onclick=()=>play(i);
+    boardEl.appendChild(d);
+  });
+}
+function checkWinner(){
+  for(const [a,b,c] of wins){
+    if(cells[a] && cells[a]===cells[b] && cells[b]===cells[c]) return cells[a];
+  }
+  if(cells.every(c=>c)) return 'D';
+  return null;
+}
+function play(i){
+  if(over || cells[i]) return;
+  cells[i]=turn;
+  render();
+  const w=checkWinner();
+  if(w){ finish(w); return; }
+  turn = turn==='X' ? 'O' : 'X';
+  statusEl.textContent = 'Ход игрока '+turn;
+  if(vsBot && turn==='O' && !over) setTimeout(botMove,400);
+}
+function botMove(){
+  let move=findBestMove();
+  if(move!==-1) play(move);
+}
+function findBestMove(){
+  for(const p of ['O','X']){
+    for(const [a,b,c] of wins){
+      const line=[cells[a],cells[b],cells[c]];
+      if(line.filter(v=>v===p).length===2 && line.includes(null)){
+        const idx=[a,b,c][line.indexOf(null)];
+        return idx;
+      }
+    }
+  }
+  if(!cells[4]) return 4;
+  const corners=[0,2,6,8].filter(i=>!cells[i]);
+  if(corners.length) return corners[Math.floor(Math.random()*corners.length)];
+  const empty=cells.map((v,i)=>v?null:i).filter(i=>i!==null);
+  return empty.length ? empty[Math.floor(Math.random()*empty.length)] : -1;
+}
+function finish(w){
+  over=true;
+  if(w==='D'){ scores.D++; statusEl.textContent='Ничья! 🤝'; }
+  else { scores[w]++; statusEl.textContent = (w==='X'?'Х':'О') + ' победил! 🎉'; }
+  document.getElementById('scoreX').textContent='Х: '+scores.X;
+  document.getElementById('scoreO').textContent='О: '+scores.O;
+  document.getElementById('scoreD').textContent='Ничьи: '+scores.D;
+}
+document.getElementById('newRound').onclick=()=>{
+  cells=Array(9).fill(null); turn='X'; over=false;
+  statusEl.textContent='Ход игрока Х';
+  render();
+};
+document.getElementById('mode').onclick=(e)=>{
+  vsBot=!vsBot;
+  e.target.textContent = vsBot ? 'Режим: против бота' : 'Режим: 2 игрока';
+  cells=Array(9).fill(null); turn='X'; over=false;
+  statusEl.textContent='Ход игрока Х';
+  render();
+};
+render();
+</script>
+</body>
+</html>
