@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Змейка</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --sky-top:#BFF3E0; --sky-bottom:#E9FBEF;
+    --ink:#1E4635; --ink-soft:#4C7767;
+    --pink:#F58FB3; --pink-dark:#C2507A;
+    --green:#35C57A; --green-dark:#1E9E5E;
+    --card-bg:#FFFFFF;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;}
+  html,body{margin:0;padding:0;height:100%;font-family:'Nunito',sans-serif;color:var(--ink);
+    background:linear-gradient(180deg,var(--sky-top) 0%,var(--sky-bottom) 55%,#FFF7E0 100%);
+    overflow:hidden;}
+  .wrap{max-width:480px;margin:0 auto;padding:16px 16px 10px;display:flex;flex-direction:column;height:100vh;}
+  .plumbob{width:32px;height:32px;margin:0 auto 4px;background:linear-gradient(135deg,var(--pink) 0%,#FBC3D6 100%);
+    transform:rotate(45deg);border-radius:6px;box-shadow:0 10px 18px -6px rgba(197,53,106,0.5);
+    animation:hover-bob 2.6s ease-in-out infinite;}
+  @keyframes hover-bob{0%,100%{transform:rotate(45deg) translateY(0);}50%{transform:rotate(45deg) translateY(-8px);}}
+  h1{font-family:'Baloo 2',sans-serif;font-weight:800;font-size:22px;text-align:center;margin:2px 0;}
+  .hud{display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:14px;color:var(--ink-soft);margin-bottom:8px;}
+  .score-badge{background:#FDEAF0;color:var(--pink-dark);padding:4px 12px;border-radius:20px;font-family:'Baloo 2',sans-serif;font-size:15px;}
+  .board-holder{flex:1;display:flex;align-items:center;justify-content:center;}
+  canvas{background:var(--card-bg);border-radius:18px;box-shadow:0 14px 24px -10px rgba(30,70,53,0.25);
+    touch-action:none;max-width:100%;max-height:100%;}
+  .controls{display:grid;grid-template-columns:60px 60px 60px;grid-template-rows:56px 56px;
+    gap:8px;justify-content:center;margin:12px auto 4px;}
+  .ctrl-btn{background:var(--card-bg);border:none;border-radius:16px;font-size:22px;color:var(--ink);
+    box-shadow:0 6px 0 rgba(0,0,0,0.06),0 8px 14px -6px rgba(30,70,53,0.2);}
+  .ctrl-btn:active{transform:translateY(3px);box-shadow:0 3px 0 rgba(0,0,0,0.06);}
+  #up{grid-column:2;grid-row:1;} #left{grid-column:1;grid-row:2;}
+  #down{grid-column:2;grid-row:2;} #right{grid-column:3;grid-row:2;}
+  .overlay{position:fixed;inset:0;background:rgba(30,70,53,0.55);display:none;align-items:center;justify-content:center;z-index:10;}
+  .overlay.show{display:flex;}
+  .modal{background:var(--card-bg);border-radius:22px;padding:26px 24px;text-align:center;max-width:280px;
+    box-shadow:0 20px 40px -10px rgba(0,0,0,0.35);}
+  .modal h2{font-family:'Baloo 2',sans-serif;margin:0 0 8px;font-size:22px;color:var(--pink-dark);}
+  .modal p{font-weight:700;color:var(--ink-soft);margin:0 0 16px;}
+  .btn-main{background:linear-gradient(135deg,var(--pink),#FBC3D6);border:none;color:#fff;font-family:'Baloo 2',sans-serif;
+    font-weight:700;font-size:16px;padding:12px 26px;border-radius:16px;box-shadow:0 8px 0 var(--pink-dark);}
+  .btn-main:active{transform:translateY(4px);box-shadow:0 4px 0 var(--pink-dark);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="plumbob"></div>
+  <h1>🐍 Змейка</h1>
+  <div class="hud">
+    <span>Собирай яблоки!</span>
+    <span class="score-badge" id="score">0</span>
+  </div>
+  <div class="board-holder"><canvas id="board" width="320" height="320"></canvas></div>
+  <div class="controls">
+    <button class="ctrl-btn" id="up">⬆️</button>
+    <button class="ctrl-btn" id="left">⬅️</button>
+    <button class="ctrl-btn" id="down">⬇️</button>
+    <button class="ctrl-btn" id="right">➡️</button>
+  </div>
+</div>
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h2>Игра окончена 🍎</h2>
+    <p id="finalScore">Счёт: 0</p>
+    <button class="btn-main" id="restart">Сыграть ещё</button>
+  </div>
+</div>
+<script>
+if(window.Telegram && window.Telegram.WebApp){window.Telegram.WebApp.ready();window.Telegram.WebApp.expand();}
+
+const canvas=document.getElementById('board');
+const ctx=canvas.getContext('2d');
+const cell=16, cols=20, rows=20;
+let snake, dir, nextDir, food, score, alive, loopId;
+
+function reset(){
+  snake=[{x:10,y:10},{x:9,y:10},{x:8,y:10}];
+  dir={x:1,y:0}; nextDir=dir;
+  score=0; alive=true;
+  document.getElementById('score').textContent=score;
+  placeFood();
+  document.getElementById('overlay').classList.remove('show');
+  if(loopId) clearInterval(loopId);
+  loopId=setInterval(tick,110);
+}
+function placeFood(){
+  while(true){
+    const p={x:Math.floor(Math.random()*cols),y:Math.floor(Math.random()*rows)};
+    if(!snake.some(s=>s.x===p.x&&s.y===p.y)){food=p;return;}
+  }
+}
+function tick(){
+  dir=nextDir;
+  const head={x:snake[0].x+dir.x,y:snake[0].y+dir.y};
+  if(head.x<0||head.y<0||head.x>=cols||head.y>=rows||snake.some(s=>s.x===head.x&&s.y===head.y)){
+    gameOver();return;
+  }
+  snake.unshift(head);
+  if(head.x===food.x&&head.y===food.y){
+    score++; document.getElementById('score').textContent=score; placeFood();
+  } else { snake.pop(); }
+  draw();
+}
+function gameOver(){
+  alive=false; clearInterval(loopId);
+  document.getElementById('finalScore').textContent='Счёт: '+score;
+  document.getElementById('overlay').classList.add('show');
+}
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle='#F5FFF9'; ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle='#F58FB3';
+  ctx.beginPath();
+  ctx.arc(food.x*cell+cell/2, food.y*cell+cell/2, cell/2.4, 0, Math.PI*2);
+  ctx.fill();
+  snake.forEach((s,i)=>{
+    ctx.fillStyle = i===0 ? '#1E9E5E' : '#35C57A';
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(s.x*cell+1,s.y*cell+1,cell-2,cell-2,5) : ctx.rect(s.x*cell+1,s.y*cell+1,cell-2,cell-2);
+    ctx.fill();
+  });
+}
+function setDir(x,y){ if(dir.x===-x&&dir.y===-y) return; nextDir={x,y}; }
+
+document.getElementById('up').onclick=()=>setDir(0,-1);
+document.getElementById('down').onclick=()=>setDir(0,1);
+document.getElementById('left').onclick=()=>setDir(-1,0);
+document.getElementById('right').onclick=()=>setDir(1,0);
+document.getElementById('restart').onclick=reset;
+
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowUp') setDir(0,-1);
+  if(e.key==='ArrowDown') setDir(0,1);
+  if(e.key==='ArrowLeft') setDir(-1,0);
+  if(e.key==='ArrowRight') setDir(1,0);
+});
+
+let touchStartX=0, touchStartY=0;
+canvas.addEventListener('touchstart',e=>{
+  touchStartX=e.touches[0].clientX; touchStartY=e.touches[0].clientY;
+},{passive:true});
+canvas.addEventListener('touchend',e=>{
+  const dx=e.changedTouches[0].clientX-touchStartX;
+  const dy=e.changedTouches[0].clientY-touchStartY;
+  if(Math.abs(dx)>Math.abs(dy)){ setDir(dx>0?1:-1,0); } else { setDir(0,dy>0?1:-1); }
+},{passive:true});
+
+reset();
+</script>
+</body>
+</html>
