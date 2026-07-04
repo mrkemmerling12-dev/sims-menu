@@ -1,4 +1,4 @@
-"<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
@@ -228,7 +228,7 @@
   <p class="subtitle">Выбери, во что сыграем</p>
 
   <div class="grid">
-    <a class="card c-green" data-url="https://flappybird.io">
+    <a class="card c-green" data-url="https://mrkemmerling12-dev.github.io/sims-menu/flappybird.html">
       <div class="icon-badge">🐤</div>
       <div class="card-text">
         <span class="card-tag">Аркада</span>
@@ -238,7 +238,7 @@
       <div class="arrow">▶</div>
     </a>
 
-    <a class="card c-blue" data-url="https://www.mathster.com/games/tetris/">
+    <a class="card c-blue" data-url="https://mrkemmerling12-dev.github.io/sims-menu/tetris.html">
       <div class="icon-badge">🧱</div>
       <div class="card-text">
         <span class="card-tag">Головоломка</span>
@@ -248,7 +248,7 @@
       <div class="arrow">▶</div>
     </a>
 
-    <a class="card c-purple" data-url="https://playtictactoe.org/">
+    <a class="card c-purple" data-url="https://mrkemmerling12-dev.github.io/sims-menu/tictactoe.html">
       <div class="icon-badge">⭕</div>
       <div class="card-text">
         <span class="card-tag">Дуэль умов</span>
@@ -258,7 +258,7 @@
       <div class="arrow">▶</div>
     </a>
 
-    <a class="card c-pink" data-url="https://playsnake.org/">
+    <a class="card c-pink" data-url="https://mrkemmerling12-dev.github.io/sims-menu/snake.html">
       <div class="icon-badge">🐍</div>
       <div class="card-text">
         <span class="card-tag">Ретро-классика</span>
@@ -279,21 +279,24 @@
       const tg = window.Telegram.WebApp;
       tg.ready();
       tg.expand(); // Разворачиваем приложение на весь экран
-
-      // Находим все карточки на странице
-      const cards = document.querySelectorAll('.card');
-      
-      cards.forEach(card => {
-        card.addEventListener('click', function(e) {
-          e.preventDefault(); // Защита от стандартных переходов
-          
-          const url = this.getAttribute('data-url');
-          if (url) {
-            // Передаем настройки, чтобы ссылка открывалась во встроенном браузере Telegram
-            tg.openLink(url, { try_instant_view: true });
-          }
-        });
-      });
     }
+
+    // Находим все карточки на странице
+    const cards = document.querySelectorAll('.card');
+
+    cards.forEach(card => {
+      card.addEventListener('click', function(e) {
+        e.preventDefault(); // Защита от стандартных переходов
+
+        const url = this.getAttribute('data-url');
+        if (url) {
+          // Переходим на страницу игры прямо внутри Telegram, без внешнего браузера
+          window.location.href = url;
+        }
+      });
+    });
   });
 </script>
+
+</body>
+</html>
