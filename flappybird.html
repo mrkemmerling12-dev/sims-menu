@@ -8,20 +8,19 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
-  :root{--sky-top:#BFF3E0;--sky-bottom:#E9FBEF;--ink:#1E4635;--ink-soft:#4C7767;
+  :root{--sky-top:#8FE0D8;--sky-bottom:#DFF7EA;--ink:#1E4635;--ink-soft:#4C7767;
     --green:#35C57A;--green-dark:#1E9E5E;--card-bg:#FFFFFF;--yellow:#FFC94D;}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;}
   html,body{margin:0;padding:0;height:100%;font-family:'Nunito',sans-serif;color:var(--ink);
-    background:linear-gradient(180deg,var(--sky-top) 0%,var(--sky-bottom) 55%,#FFF7E0 100%);overflow:hidden;}
+    background:linear-gradient(180deg,#BFF3E0 0%,#E9FBEF 55%,#FFF7E0 100%);overflow:hidden;}
   .wrap{max-width:480px;margin:0 auto;padding:14px 14px 10px;display:flex;flex-direction:column;height:100vh;}
-  .plumbob{width:30px;height:30px;margin:0 auto 4px;background:linear-gradient(135deg,var(--yellow) 0%,#FFE29A 100%);
-    transform:rotate(45deg);border-radius:6px;box-shadow:0 10px 18px -6px rgba(255,169,10,0.5);
-    animation:hover-bob 2.6s ease-in-out infinite;}
-  @keyframes hover-bob{0%,100%{transform:rotate(45deg) translateY(0);}50%{transform:rotate(45deg) translateY(-8px);}}
+  .back-btn{position:fixed;top:14px;left:14px;width:40px;height:40px;border-radius:50%;background:var(--card-bg);
+    display:flex;align-items:center;justify-content:center;font-size:18px;text-decoration:none;color:var(--ink);
+    box-shadow:0 6px 0 rgba(0,0,0,0.06),0 8px 14px -6px rgba(30,70,53,0.25);z-index:20;}
+  .back-btn:active{transform:translateY(3px);box-shadow:0 3px 0 rgba(0,0,0,0.06);}
   h1{font-family:'Baloo 2',sans-serif;font-weight:800;font-size:20px;text-align:center;margin:2px 0 8px;}
   .board-holder{flex:1;display:flex;align-items:center;justify-content:center;position:relative;}
-  canvas{background:#DFF7EA;border-radius:18px;box-shadow:0 14px 24px -10px rgba(30,70,53,0.25);
-    max-width:100%;max-height:100%;}
+  canvas{border-radius:18px;box-shadow:0 14px 24px -10px rgba(30,70,53,0.25);max-width:100%;max-height:100%;}
   .hint{text-align:center;font-weight:700;color:var(--ink-soft);font-size:13px;margin-top:10px;}
   .overlay{position:fixed;inset:0;background:rgba(30,70,53,0.55);display:none;align-items:center;justify-content:center;z-index:10;}
   .overlay.show{display:flex;}
@@ -35,10 +34,10 @@
 </style>
 </head>
 <body>
+<a class="back-btn" href="index.html">⬅️</a>
 <div class="wrap">
-  <div class="plumbob"></div>
   <h1>🐤 Flappy Bird</h1>
-  <div class="board-holder"><canvas id="board" width="300" height="420"></canvas></div>
+  <div class="board-holder"><canvas id="board" width="300" height="440"></canvas></div>
   <p class="hint">Тапни по экрану, чтобы взлететь</p>
 </div>
 <div class="overlay" id="overlay">
@@ -54,15 +53,25 @@ if(window.Telegram && window.Telegram.WebApp){window.Telegram.WebApp.ready();win
 const canvas=document.getElementById('board');
 const ctx=canvas.getContext('2d');
 const W=canvas.width, H=canvas.height;
-let bird, pipes, score, alive, frame, gravity=0.45, jump=-7.5, pipeGap=130, pipeW=54, speed=2.4;
+const BASE_SPEED=1.6, MAX_SPEED=3.2, SPEED_STEP=0.15, SCORE_PER_LEVEL=5;
+let bird, pipes, score, alive, frame, level, clouds, particles;
+let gravity=0.32, jump=-6.4, pipeGap=155, pipeW=58, speed=BASE_SPEED;
 
 function reset(){
-  bird={x:70,y:H/2,v:0,r:14};
-  pipes=[];
-  score=0; alive=true; frame=0;
+  bird={x:70,y:H/2,v:0,r:15,angle:0,wing:0};
+  pipes=[]; particles=[];
+  score=0; alive=true; frame=0; level=1; speed=BASE_SPEED;
+  clouds=Array.from({length:4},(_,i)=>({x:Math.random()*W,y:30+i*70+Math.random()*30,s:0.5+Math.random()*0.6}));
   document.getElementById('overlay').classList.remove('show');
   spawnPipe();
   requestAnimationFrame(loop);
+}
+function updateLevel(){
+  const newLevel=Math.floor(score/SCORE_PER_LEVEL)+1;
+  if(newLevel!==level){
+    level=newLevel;
+    speed=Math.min(MAX_SPEED, BASE_SPEED+(level-1)*SPEED_STEP);
+  }
 }
 function spawnPipe(){
   const top=40+Math.random()*(H-pipeGap-160);
@@ -72,31 +81,107 @@ function loop(){
   if(!alive) return;
   frame++;
   bird.v+=gravity; bird.y+=bird.v;
-  if(frame%95===0) spawnPipe();
+  bird.angle = Math.max(-25, Math.min(70, bird.v*4));
+  bird.wing += 0.35;
+  clouds.forEach(c=>{ c.x-=speed*0.25*c.s; if(c.x<-40){c.x=W+40; c.y=20+Math.random()*(H-100);} });
+  if(frame%125===0) spawnPipe();
   pipes.forEach(p=>p.x-=speed);
   pipes = pipes.filter(p=>p.x>-pipeW);
   pipes.forEach(p=>{
-    if(!p.passed && p.x+pipeW<bird.x){ p.passed=true; score++; }
+    if(!p.passed && p.x+pipeW<bird.x){
+      p.passed=true; score++; updateLevel();
+      for(let i=0;i<10;i++) particles.push({x:bird.x,y:bird.y,vx:(Math.random()-0.5)*4,vy:(Math.random()-1.5)*3,life:22,color:'#FFC94D'});
+    }
     if(bird.x+bird.r>p.x && bird.x-bird.r<p.x+pipeW){
       if(bird.y-bird.r<p.top || bird.y+bird.r>p.top+pipeGap) gameOver();
     }
   });
-  if(bird.y+bird.r>H || bird.y-bird.r<0) gameOver();
+  particles.forEach(pt=>{pt.x+=pt.vx;pt.y+=pt.vy;pt.life--;});
+  particles=particles.filter(pt=>pt.life>0);
+  if(bird.y+bird.r>H-6 || bird.y-bird.r<0) gameOver();
   draw();
   if(alive) requestAnimationFrame(loop);
 }
+function drawCloud(c){
+  ctx.save();
+  ctx.globalAlpha=0.55;
+  ctx.fillStyle='#ffffff';
+  ctx.beginPath();
+  ctx.ellipse(c.x, c.y, 22*c.s, 12*c.s, 0, 0, Math.PI*2);
+  ctx.ellipse(c.x+16*c.s, c.y+3*c.s, 16*c.s, 10*c.s, 0, 0, Math.PI*2);
+  ctx.ellipse(c.x-16*c.s, c.y+3*c.s, 14*c.s, 9*c.s, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+}
+function drawPipe(p){
+  const grad=ctx.createLinearGradient(p.x,0,p.x+pipeW,0);
+  grad.addColorStop(0,'#2FAE6C'); grad.addColorStop(0.5,'#4DDB94'); grad.addColorStop(1,'#2FAE6C');
+  ctx.fillStyle=grad;
+  ctx.fillRect(p.x,0,pipeW,p.top);
+  ctx.fillRect(p.x,p.top+pipeGap,pipeW,H-(p.top+pipeGap));
+  ctx.fillStyle='#268A56';
+  ctx.fillRect(p.x-4,p.top-18,pipeW+8,18);
+  ctx.fillRect(p.x-4,p.top+pipeGap,pipeW+8,18);
+  ctx.fillStyle='rgba(255,255,255,0.25)';
+  ctx.fillRect(p.x+6,0,8,p.top);
+  ctx.fillRect(p.x+6,p.top+pipeGap+18,8,H-(p.top+pipeGap+18));
+}
+function drawBird(){
+  ctx.save();
+  ctx.translate(bird.x,bird.y);
+  ctx.rotate(bird.angle*Math.PI/180);
+  // тело
+  const grad=ctx.createRadialGradient(-4,-4,2,0,0,bird.r+2);
+  grad.addColorStop(0,'#FFE29A'); grad.addColorStop(1,'#FFC94D');
+  ctx.fillStyle=grad;
+  ctx.beginPath(); ctx.ellipse(0,0,bird.r+2,bird.r,0,0,Math.PI*2); ctx.fill();
+  // крыло
+  const wingY=Math.sin(bird.wing)*6;
+  ctx.fillStyle='#F0A83A';
+  ctx.beginPath();
+  ctx.ellipse(-4,wingY,9,6,-0.3,0,Math.PI*2);
+  ctx.fill();
+  // хвост
+  ctx.fillStyle='#F0A83A';
+  ctx.beginPath();
+  ctx.moveTo(-bird.r-1,-2); ctx.lineTo(-bird.r-9,-6); ctx.lineTo(-bird.r-9,4); ctx.closePath(); ctx.fill();
+  // клюв
+  ctx.fillStyle='#FF8A3D';
+  ctx.beginPath();
+  ctx.moveTo(bird.r-3,-2); ctx.lineTo(bird.r+9,1); ctx.lineTo(bird.r-3,5); ctx.closePath(); ctx.fill();
+  // глаз
+  ctx.fillStyle='#fff';
+  ctx.beginPath(); ctx.arc(5,-5,4.5,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#1E4635';
+  ctx.beginPath(); ctx.arc(6.5,-5,2.2,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+}
 function draw(){
   ctx.clearRect(0,0,W,H);
-  ctx.fillStyle='#DFF7EA'; ctx.fillRect(0,0,W,H);
-  ctx.fillStyle='#35C57A';
-  pipes.forEach(p=>{
-    ctx.fillRect(p.x,0,pipeW,p.top);
-    ctx.fillRect(p.x,p.top+pipeGap,pipeW,H-(p.top+pipeGap));
+  const sky=ctx.createLinearGradient(0,0,0,H);
+  sky.addColorStop(0,'#8FE0D8'); sky.addColorStop(1,'#DFF7EA');
+  ctx.fillStyle=sky; ctx.fillRect(0,0,W,H);
+  clouds.forEach(drawCloud);
+  pipes.forEach(drawPipe);
+  particles.forEach(pt=>{
+    ctx.globalAlpha=Math.max(0,pt.life/22);
+    ctx.fillStyle=pt.color;
+    ctx.beginPath(); ctx.arc(pt.x,pt.y,3,0,Math.PI*2); ctx.fill();
+    ctx.globalAlpha=1;
   });
-  ctx.fillStyle='#FFC94D';
-  ctx.beginPath(); ctx.arc(bird.x,bird.y,bird.r,0,Math.PI*2); ctx.fill();
-  ctx.fillStyle='#1E4635'; ctx.font='bold 26px sans-serif'; ctx.textAlign='center';
-  ctx.fillText(score, W/2, 44);
+  // земля
+  ctx.fillStyle='#B98E4E';
+  ctx.fillRect(0,H-8,W,8);
+  ctx.fillStyle='#8FE070';
+  ctx.fillRect(0,H-11,W,4);
+  drawBird();
+  ctx.fillStyle='rgba(255,255,255,0.9)';
+  ctx.strokeStyle='#1E4635'; ctx.lineWidth=3;
+  ctx.font='bold 28px "Baloo 2", sans-serif'; ctx.textAlign='center';
+  ctx.strokeText(score, W/2, 46); ctx.fillText(score, W/2, 46);
+  ctx.font='bold 13px "Nunito", sans-serif';
+  ctx.fillStyle='#1E4635';
+  ctx.fillText('Уровень '+level, W/2, 66);
 }
 function gameOver(){
   alive=false;
