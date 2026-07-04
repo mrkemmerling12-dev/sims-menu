@@ -8,22 +8,25 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
-  :root{--sky-top:#BFF3E0;--sky-bottom:#E9FBEF;--ink:#1E4635;--ink-soft:#4C7767;
-    --blue:#4FB8E8;--blue-dark:#1B7FA8;--card-bg:#FFFFFF;}
+  :root{--ink:#1E4635;--ink-soft:#4C7767;--blue:#4FB8E8;--blue-dark:#1B7FA8;--card-bg:#FFFFFF;}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;}
   html,body{margin:0;padding:0;height:100%;font-family:'Nunito',sans-serif;color:var(--ink);
-    background:linear-gradient(180deg,var(--sky-top) 0%,var(--sky-bottom) 55%,#FFF7E0 100%);overflow:hidden;}
+    background:linear-gradient(180deg,#BFF3E0 0%,#E9FBEF 55%,#FFF7E0 100%);overflow:hidden;}
   .wrap{max-width:480px;margin:0 auto;padding:12px 14px 8px;display:flex;flex-direction:column;height:100vh;}
-  .plumbob{width:28px;height:28px;margin:0 auto 4px;background:linear-gradient(135deg,var(--blue) 0%,#A9DFF6 100%);
-    transform:rotate(45deg);border-radius:6px;box-shadow:0 10px 18px -6px rgba(27,127,168,0.5);
-    animation:hover-bob 2.6s ease-in-out infinite;}
-  @keyframes hover-bob{0%,100%{transform:rotate(45deg) translateY(0);}50%{transform:rotate(45deg) translateY(-8px);}}
+  .back-btn{position:fixed;top:14px;left:14px;width:38px;height:38px;border-radius:50%;background:var(--card-bg);
+    display:flex;align-items:center;justify-content:center;font-size:16px;text-decoration:none;color:var(--ink);
+    box-shadow:0 6px 0 rgba(0,0,0,0.06),0 8px 14px -6px rgba(30,70,53,0.25);z-index:20;}
+  .back-btn:active{transform:translateY(3px);box-shadow:0 3px 0 rgba(0,0,0,0.06);}
   h1{font-family:'Baloo 2',sans-serif;font-weight:800;font-size:19px;text-align:center;margin:2px 0 4px;}
-  .hud{display:flex;justify-content:center;gap:10px;margin-bottom:6px;}
+  .hud{display:flex;justify-content:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;}
   .pill{background:#E4F6FD;color:var(--blue-dark);font-family:'Baloo 2',sans-serif;font-weight:700;
     padding:4px 12px;border-radius:20px;font-size:13px;}
-  .board-holder{flex:1;display:flex;align-items:center;justify-content:center;min-height:0;}
-  canvas{background:var(--card-bg);border-radius:14px;box-shadow:0 14px 24px -10px rgba(30,70,53,0.25);max-height:100%;}
+  .main-row{flex:1;display:flex;gap:10px;align-items:center;justify-content:center;min-height:0;}
+  .board-holder{display:flex;align-items:center;justify-content:center;min-height:0;}
+  canvas#board{border-radius:14px;box-shadow:0 14px 24px -10px rgba(30,70,53,0.25);max-height:100%;}
+  .side{display:flex;flex-direction:column;gap:10px;align-items:center;}
+  .next-label{font-family:'Baloo 2',sans-serif;font-weight:700;font-size:12px;color:var(--ink-soft);}
+  canvas#next{background:#fff;border-radius:12px;box-shadow:0 8px 16px -8px rgba(30,70,53,0.25);}
   .controls{display:flex;justify-content:center;gap:8px;margin:10px 0 4px;}
   .ctrl-btn{background:var(--card-bg);border:none;border-radius:14px;font-size:20px;color:var(--ink);
     width:52px;height:52px;box-shadow:0 6px 0 rgba(0,0,0,0.06),0 8px 14px -6px rgba(30,70,53,0.2);}
@@ -40,14 +43,21 @@
 </style>
 </head>
 <body>
+<a class="back-btn" href="index.html">⬅️</a>
 <div class="wrap">
-  <div class="plumbob"></div>
   <h1>🧱 Тетрис</h1>
   <div class="hud">
     <div class="pill" id="score">Очки: 0</div>
     <div class="pill" id="lines">Линии: 0</div>
+    <div class="pill" id="level">Уровень: 1</div>
   </div>
-  <div class="board-holder"><canvas id="board" width="240" height="440"></canvas></div>
+  <div class="main-row">
+    <div class="board-holder"><canvas id="board" width="220" height="440"></canvas></div>
+    <div class="side">
+      <span class="next-label">Дальше</span>
+      <canvas id="next" width="80" height="80"></canvas>
+    </div>
+  </div>
   <div class="controls">
     <button class="ctrl-btn" id="left">⬅️</button>
     <button class="ctrl-btn" id="rotate">🔄</button>
@@ -65,32 +75,30 @@
 <script>
 if(window.Telegram && window.Telegram.WebApp){window.Telegram.WebApp.ready();window.Telegram.WebApp.expand();}
 
-const cols=10, rows=20, cell=24;
+const cols=10, rows=20, cell=22;
 const canvas=document.getElementById('board');
 const ctx=canvas.getContext('2d');
-let grid, current, score, lines, alive, dropCounter, dropInterval, lastTime;
+const nextCanvas=document.getElementById('next');
+const nctx=nextCanvas.getContext('2d');
+const START_SPEED=900, MIN_SPEED=250, LINES_PER_LEVEL=5, SPEED_STEP=45;
+let grid, current, nextPiece, score, lines, level, alive, dropCounter, dropInterval, lastTime, flashRows, flashTimer;
 
-const COLORS={
-  I:'#4FB8E8', J:'#3A6FDE', L:'#FFA940', O:'#FFC94D',
-  S:'#35C57A', T:'#A87BE0', Z:'#F58FB3'
-};
+const COLORS={ I:'#4FB8E8', J:'#3A6FDE', L:'#FFA940', O:'#FFC94D', S:'#35C57A', T:'#A87BE0', Z:'#F58FB3' };
 const SHAPES={
-  I:[[1,1,1,1]],
-  J:[[1,0,0],[1,1,1]],
-  L:[[0,0,1],[1,1,1]],
-  O:[[1,1],[1,1]],
-  S:[[0,1,1],[1,1,0]],
-  T:[[0,1,0],[1,1,1]],
-  Z:[[1,1,0],[0,1,1]]
+  I:[[1,1,1,1]], J:[[1,0,0],[1,1,1]], L:[[0,0,1],[1,1,1]],
+  O:[[1,1],[1,1]], S:[[0,1,1],[1,1,0]], T:[[0,1,0],[1,1,1]], Z:[[1,1,0],[0,1,1]]
 };
-
 function emptyGrid(){ return Array.from({length:rows},()=>Array(cols).fill(null)); }
-
-function newPiece(){
+function randPiece(){
   const keys=Object.keys(SHAPES);
   const k=keys[Math.floor(Math.random()*keys.length)];
-  const shape=SHAPES[k].map(r=>r.slice());
-  return {shape, color:COLORS[k], x:Math.floor(cols/2)-Math.ceil(shape[0].length/2), y:0};
+  return {key:k, shape:SHAPES[k].map(r=>r.slice()), color:COLORS[k]};
+}
+function newPiece(){
+  const p = nextPiece || randPiece();
+  nextPiece = randPiece();
+  drawNext();
+  return {shape:p.shape, color:p.color, x:Math.floor(cols/2)-Math.ceil(p.shape[0].length/2), y:0};
 }
 function rotate(matrix){
   const N=matrix.length, M=matrix[0].length;
@@ -109,6 +117,11 @@ function collide(px,py,shape){
   }
   return false;
 }
+function ghostY(){
+  let gy=current.y;
+  while(!collide(current.x,gy+1,current.shape)) gy++;
+  return gy;
+}
 function merge(){
   const {shape,color,x,y}=current;
   shape.forEach((row,r)=>row.forEach((v,c)=>{
@@ -116,19 +129,20 @@ function merge(){
   }));
 }
 function clearLines(){
-  let cleared=0;
-  for(let r=rows-1;r>=0;r--){
-    if(grid[r].every(v=>v)){
-      grid.splice(r,1); grid.unshift(Array(cols).fill(null));
-      cleared++; r++;
-    }
-  }
-  if(cleared){
-    const points=[0,100,300,500,800][cleared]||1000;
-    score+=points; lines+=cleared;
-    document.getElementById('score').textContent='Очки: '+score;
-    document.getElementById('lines').textContent='Линии: '+lines;
-    dropInterval=Math.max(180, 700-lines*20);
+  let full=[];
+  for(let r=0;r<rows;r++) if(grid[r].every(v=>v)) full.push(r);
+  if(full.length){
+    flashRows=full; flashTimer=8;
+    setTimeout(()=>{
+      full.sort((a,b)=>a-b).forEach(r=>{ grid.splice(r,1); grid.unshift(Array(cols).fill(null)); });
+      const points=[0,100,300,500,800][full.length]||1000;
+      score+=points; lines+=full.length;
+      level=Math.floor(lines/LINES_PER_LEVEL)+1;
+      document.getElementById('score').textContent='Очки: '+score;
+      document.getElementById('lines').textContent='Линии: '+lines;
+      document.getElementById('level').textContent='Уровень: '+level;
+      dropInterval=Math.max(MIN_SPEED, START_SPEED-(level-1)*SPEED_STEP);
+    }, 140);
   }
 }
 function drop(){
@@ -142,34 +156,53 @@ function drop(){
   }
   dropCounter=0;
 }
-function move(dx){
-  if(!collide(current.x+dx,current.y,current.shape)) current.x+=dx;
-}
+function move(dx){ if(!collide(current.x+dx,current.y,current.shape)) current.x+=dx; }
 function doRotate(){
   const rotated=rotate(current.shape);
   let kick=0;
-  if(collide(current.x,current.y,rotated)){
-    kick = (current.x+rotated[0].length>cols) ? -1 : 1;
-  }
-  if(!collide(current.x+kick,current.y,rotated)){
-    current.shape=rotated; current.x+=kick;
-  }
+  if(collide(current.x,current.y,rotated)) kick = (current.x+rotated[0].length>cols) ? -1 : 1;
+  if(!collide(current.x+kick,current.y,rotated)){ current.shape=rotated; current.x+=kick; }
+}
+function shade(hex, amt){
+  const n=parseInt(hex.slice(1),16);
+  let r=(n>>16)+amt, g=((n>>8)&0xff)+amt, b=(n&0xff)+amt;
+  r=Math.max(0,Math.min(255,r)); g=Math.max(0,Math.min(255,g)); b=Math.max(0,Math.min(255,b));
+  return `rgb(${r},${g},${b})`;
+}
+function drawCell(c2,x,y,color,size){
+  const grad=c2.createLinearGradient(x*size,y*size,x*size+size,y*size+size);
+  grad.addColorStop(0, shade(color,35));
+  grad.addColorStop(1, shade(color,-25));
+  c2.fillStyle=grad;
+  c2.fillRect(x*size+1,y*size+1,size-2,size-2);
+  c2.strokeStyle='rgba(255,255,255,0.35)';
+  c2.strokeRect(x*size+1.5,y*size+1.5,size-3,size-3);
 }
 function draw(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
   ctx.fillStyle='#F5FBFF'; ctx.fillRect(0,0,canvas.width,canvas.height);
-  for(let r=0;r<rows;r++){
-    for(let c=0;c<cols;c++){
-      if(grid[r][c]) drawCell(c,r,grid[r][c]);
-    }
+  for(let r=0;r<rows;r++) for(let c=0;c<cols;c++) if(grid[r][c]) drawCell(ctx,c,r,grid[r][c],cell);
+  if(flashTimer>0){
+    ctx.fillStyle=`rgba(255,255,255,${flashTimer/8*0.8})`;
+    flashRows.forEach(r=> ctx.fillRect(0,r*cell,canvas.width,cell));
+    flashTimer--;
   }
-  current.shape.forEach((row,r)=>row.forEach((v,c)=>{
-    if(v) drawCell(current.x+c,current.y+r,current.color);
-  }));
+  const gy=ghostY();
+  ctx.globalAlpha=0.25;
+  current.shape.forEach((row,r)=>row.forEach((v,c)=>{ if(v) drawCell(ctx,current.x+c,gy+r,current.color,cell); }));
+  ctx.globalAlpha=1;
+  current.shape.forEach((row,r)=>row.forEach((v,c)=>{ if(v) drawCell(ctx,current.x+c,current.y+r,current.color,cell); }));
 }
-function drawCell(x,y,color){
-  ctx.fillStyle=color;
-  ctx.fillRect(x*cell+1,y*cell+1,cell-2,cell-2);
+function drawNext(){
+  nctx.clearRect(0,0,nextCanvas.width,nextCanvas.height);
+  if(!nextPiece) return;
+  const size=16;
+  const w=nextPiece.shape[0].length*size, h=nextPiece.shape.length*size;
+  const ox=(nextCanvas.width-w)/2, oy=(nextCanvas.height-h)/2;
+  nctx.save();
+  nctx.translate(ox,oy);
+  nextPiece.shape.forEach((row,r)=>row.forEach((v,c)=>{ if(v) drawCell(nctx,c,r,nextPiece.color,size); }));
+  nctx.restore();
 }
 function gameOver(){
   alive=false;
@@ -185,10 +218,12 @@ function loop(time=0){
   requestAnimationFrame(loop);
 }
 function reset(){
-  grid=emptyGrid(); score=0; lines=0; alive=true;
-  dropCounter=0; dropInterval=700; lastTime=0;
+  grid=emptyGrid(); score=0; lines=0; level=1; alive=true;
+  dropCounter=0; dropInterval=START_SPEED; lastTime=0; flashTimer=0; flashRows=[];
+  nextPiece=null;
   document.getElementById('score').textContent='Очки: 0';
   document.getElementById('lines').textContent='Линии: 0';
+  document.getElementById('level').textContent='Уровень: 1';
   document.getElementById('overlay').classList.remove('show');
   current=newPiece();
   requestAnimationFrame(loop);
