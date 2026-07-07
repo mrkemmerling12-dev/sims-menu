@@ -12,19 +12,20 @@
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;}
   html,body{margin:0;padding:0;height:100%;font-family:'Nunito',sans-serif;color:var(--ink);
     background:linear-gradient(180deg,#BFF3E0 0%,#E9FBEF 55%,#FFF7E0 100%);overflow:hidden;}
-  .wrap{max-width:480px;margin:0 auto;padding:16px 16px 10px;display:flex;flex-direction:column;height:100vh;}
+  .wrap{max-width:480px;margin:0 auto;padding:14px 12px 18px;display:flex;flex-direction:column;height:100vh;}
   .back-btn{position:fixed;top:14px;left:14px;width:40px;height:40px;border-radius:50%;background:var(--card-bg);
     display:flex;align-items:center;justify-content:center;font-size:18px;text-decoration:none;color:var(--ink);
     box-shadow:0 6px 0 rgba(0,0,0,0.06),0 8px 14px -6px rgba(30,70,53,0.25);z-index:20;}
   .back-btn:active{transform:translateY(3px);box-shadow:0 3px 0 rgba(0,0,0,0.06);}
-  h1{font-family:'Baloo 2',sans-serif;font-weight:800;font-size:22px;text-align:center;margin:2px 0;}
-  .hud{display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:14px;color:var(--ink-soft);margin-bottom:8px;}
-  .score-badge{background:#FDEAF0;color:var(--pink-dark);padding:4px 12px;border-radius:20px;font-family:'Baloo 2',sans-serif;font-size:15px;}
-  .board-holder{flex:1;display:flex;align-items:center;justify-content:center;}
+  h1{font-family:'Baloo 2',sans-serif;font-weight:800;font-size:20px;text-align:center;margin:2px 0;}
+  .hud{display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:14px;color:var(--ink-soft);margin-bottom:6px;}
+  .score-badge{background:#FDEAF0;color:var(--pink-dark);padding:4px 12px;border-radius:20px;font-family:'Baloo 2',sans-serif;font-size:15px;transition:transform 0.2s;}
+  .score-badge.bump{transform:scale(1.25);}
+  .board-holder{flex:1 1 auto;display:flex;align-items:center;justify-content:center;min-height:0;}
   canvas{border-radius:18px;box-shadow:0 14px 24px -10px rgba(30,70,53,0.25);touch-action:none;max-width:100%;max-height:100%;}
-  .controls{display:grid;grid-template-columns:60px 60px 60px;grid-template-rows:56px 56px;
-    gap:8px;justify-content:center;margin:12px auto 4px;}
-  .ctrl-btn{background:var(--card-bg);border:none;border-radius:16px;font-size:22px;color:var(--ink);
+  .controls{display:grid;grid-template-columns:58px 58px 58px;grid-template-rows:52px 52px;
+    gap:8px;justify-content:center;margin:14px auto 2px;flex:0 0 auto;}
+  .ctrl-btn{background:var(--card-bg);border:none;border-radius:16px;font-size:21px;color:var(--ink);
     box-shadow:0 6px 0 rgba(0,0,0,0.06),0 8px 14px -6px rgba(30,70,53,0.2);}
   .ctrl-btn:active{transform:translateY(3px);box-shadow:0 3px 0 rgba(0,0,0,0.06);}
   #up{grid-column:2;grid-row:1;} #left{grid-column:1;grid-row:2;}
@@ -48,7 +49,7 @@
     <span id="levelLabel">Уровень 1</span>
     <span class="score-badge" id="score">0</span>
   </div>
-  <div class="board-holder"><canvas id="board" width="320" height="320"></canvas></div>
+  <div class="board-holder"><canvas id="board" width="352" height="352"></canvas></div>
   <div class="controls">
     <button class="ctrl-btn" id="up">⬆️</button>
     <button class="ctrl-btn" id="left">⬅️</button>
@@ -68,14 +69,24 @@ if(window.Telegram && window.Telegram.WebApp){window.Telegram.WebApp.ready();win
 
 const canvas=document.getElementById('board');
 const ctx=canvas.getContext('2d');
-const cell=16, cols=20, rows=20;
+const cell=16, cols=22, rows=22;
 const BASE_SPEED=170, MIN_SPEED=90, SPEED_STEP=10, APPLES_PER_LEVEL=5;
-let snake, dir, nextDir, food, score, alive, loopId, level, speed, particles, foodPulse;
+// Палитра тела змейки — меняется каждые 5 съеденных яблок
+const PALETTES=[
+  ['#1E9E5E','#7BE3A6'],   // зелёный
+  ['#1B7FA8','#8FD6F5'],   // голубой
+  ['#7647B8','#C8A9F0'],   // фиолетовый
+  ['#C2507A','#F5AFC6'],   // розовый
+  ['#C97A1E','#FFCB80'],   // оранжевый
+  ['#B8367D','#F0A0C8']    // маджента
+];
+let snake, dir, nextDir, food, score, alive, loopId, level, speed, particles, foodPulse, palette, glowPulse;
 
 function reset(){
-  snake=[{x:10,y:10},{x:9,y:10},{x:8,y:10}];
+  snake=[{x:11,y:11},{x:10,y:11},{x:9,y:11}];
   dir={x:1,y:0}; nextDir=dir;
-  score=0; alive=true; level=1; speed=BASE_SPEED; particles=[]; foodPulse=0;
+  score=0; alive=true; level=1; speed=BASE_SPEED; particles=[]; foodPulse=0; glowPulse=0;
+  palette=PALETTES[0];
   document.getElementById('score').textContent=score;
   document.getElementById('levelLabel').textContent='Уровень '+level;
   placeFood();
@@ -89,6 +100,7 @@ function updateLevel(){
   if(newLevel!==level){
     level=newLevel;
     speed=Math.max(MIN_SPEED, BASE_SPEED-(level-1)*SPEED_STEP);
+    palette=PALETTES[(level-1)%PALETTES.length];
     document.getElementById('levelLabel').textContent='Уровень '+level;
     clearInterval(loopId);
     loopId=setInterval(tick,speed);
@@ -108,13 +120,17 @@ function tick(){
   }
   snake.unshift(head);
   if(head.x===food.x&&head.y===food.y){
-    score++; document.getElementById('score').textContent=score;
-    for(let i=0;i<12;i++) particles.push({x:food.x*cell+cell/2,y:food.y*cell+cell/2,vx:(Math.random()-0.5)*3,vy:(Math.random()-0.5)*3,life:20,color:'#F58FB3'});
+    score++;
+    const scoreEl=document.getElementById('score');
+    scoreEl.textContent=score;
+    scoreEl.classList.add('bump');
+    setTimeout(()=>scoreEl.classList.remove('bump'),200);
+    for(let i=0;i<14;i++) particles.push({x:food.x*cell+cell/2,y:food.y*cell+cell/2,vx:(Math.random()-0.5)*3.4,vy:(Math.random()-0.5)*3.4,life:22,color:palette[1]});
     placeFood(); updateLevel();
   } else { snake.pop(); }
 }
 function render(){
-  foodPulse+=0.15;
+  foodPulse+=0.15; glowPulse+=0.08;
   particles.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.life--;});
   particles=particles.filter(p=>p.life>0);
   draw();
@@ -127,38 +143,45 @@ function gameOver(){
 }
 function draw(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
-  // фон в клетку
   ctx.fillStyle='#F5FFF9'; ctx.fillRect(0,0,canvas.width,canvas.height);
   ctx.fillStyle='rgba(53,197,122,0.06)';
   for(let r=0;r<rows;r++) for(let c=0;c<cols;c++) if((r+c)%2===0) ctx.fillRect(c*cell,r*cell,cell,cell);
-  // яблоко с пульсацией
   const pulse=Math.sin(foodPulse)*1.5;
-  ctx.fillStyle='#F58FB3';
+  ctx.fillStyle=palette[0];
   ctx.beginPath();
   ctx.arc(food.x*cell+cell/2, food.y*cell+cell/2, cell/2.4+pulse, 0, Math.PI*2);
   ctx.fill();
   ctx.fillStyle='#5A8A3D';
   ctx.fillRect(food.x*cell+cell/2-1, food.y*cell+2, 2, 4);
-  // частицы
   particles.forEach(p=>{
-    ctx.globalAlpha=Math.max(0,p.life/20);
+    ctx.globalAlpha=Math.max(0,p.life/22);
     ctx.fillStyle=p.color;
     ctx.beginPath(); ctx.arc(p.x,p.y,2.4,0,Math.PI*2); ctx.fill();
     ctx.globalAlpha=1;
   });
-  // змейка с градиентом
+  // лёгкое свечение вокруг головы
+  const headGlow=Math.sin(glowPulse)*3+6;
+  if(snake.length){
+    const h=snake[0];
+    ctx.save();
+    ctx.globalAlpha=0.25;
+    ctx.fillStyle=palette[1];
+    ctx.beginPath();
+    ctx.arc(h.x*cell+cell/2, h.y*cell+cell/2, cell/2+headGlow, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  }
   snake.forEach((s,i)=>{
     const t=i/Math.max(1,snake.length-1);
-    const g1=[30,158,94], g2=[123,227,166];
-    const r=Math.round(g1[0]+(g2[0]-g1[0])*t);
-    const gr=Math.round(g1[1]+(g2[1]-g1[1])*t);
-    const b=Math.round(g1[2]+(g2[2]-g1[2])*t);
-    ctx.fillStyle=`rgb(${r},${gr},${b})`;
+    const c1=hexToRgb(palette[0]), c2=hexToRgb(palette[1]);
+    const r=Math.round(c1[0]+(c2[0]-c1[0])*t);
+    const g=Math.round(c1[1]+(c2[1]-c1[1])*t);
+    const b=Math.round(c1[2]+(c2[2]-c1[2])*t);
+    ctx.fillStyle=`rgb(${r},${g},${b})`;
     const rad = i===0 ? 7 : 5;
     roundRect(s.x*cell+1,s.y*cell+1,cell-2,cell-2,rad);
     ctx.fill();
   });
-  // глаза у головы
   if(snake.length){
     const h=snake[0];
     const cx=h.x*cell+cell/2, cy=h.y*cell+cell/2;
@@ -170,6 +193,10 @@ function draw(){
     ctx.beginPath(); ctx.arc(cx+ox-dir.y*4,cy+oy+dir.x*4,1.2,0,Math.PI*2); ctx.fill();
     ctx.beginPath(); ctx.arc(cx+ox+dir.y*4,cy+oy-dir.x*4,1.2,0,Math.PI*2); ctx.fill();
   }
+}
+function hexToRgb(hex){
+  const n=parseInt(hex.slice(1),16);
+  return [(n>>16)&255,(n>>8)&255,n&255];
 }
 function roundRect(x,y,w,h,r){
   ctx.beginPath();
