@@ -153,7 +153,7 @@ document.getElementById('closeSkins').onclick=()=>{ document.getElementById('ski
 
 // ---------- Игровые параметры ----------
 const BASE_SPEED_R=0.0044, MAX_SPEED_R=0.0092, SPEED_STEP_R=0.0004, SCORE_PER_LEVEL=5;
-const GRAVITY_R=0.00073, JUMP_R=-0.0173, MAX_FALL_R=0.0217, MAX_RISE_R=-0.0217;
+const GRAVITY_R=0.00052, JUMP_R=-0.0135, MAX_FALL_R=0.0155, MAX_RISE_R=-0.0155;
 const DARK_CYCLE=20, DARK_DURATION=5;   // кладбище + ворона
 const NYAN_CYCLE=50, NYAN_DURATION=5;   // радуга + Nyan Cat
 
@@ -175,7 +175,7 @@ function activeVisual(){
 }
 function reset(){
   resizeCanvas();
-  bird={x:W*0.22,y:H/2,v:0,r:H*0.034,angle:0,wing:0};
+  bird={x:W*0.22,y:H/2,v:0,r:H*0.023,angle:0,wing:0};
   pipes=[]; particles=[]; transformParticles=[]; spinBoost=0;
   score=0; alive=true; frame=0; level=1; speed=BASE_SPEED_R*W;
   mode='normal'; prevMode='normal';
@@ -215,7 +215,7 @@ function triggerTransformFX(){
   }
 }
 function spawnPipe(){
-  const gap=H*0.30;
+  const gap=H*0.34;
   const top=H*0.09+Math.random()*(H-gap-H*0.30);
   pipes.push({x:W+20, top, passed:false, gap});
 }
