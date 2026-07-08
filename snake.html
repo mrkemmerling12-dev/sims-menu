@@ -10,27 +10,23 @@
 <style>
   :root{--ink:#1E4635;--ink-soft:#4C7767;--pink:#F58FB3;--pink-dark:#C2507A;--card-bg:#FFFFFF;}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;}
-  html,body{margin:0;padding:0;height:100%;font-family:'Nunito',sans-serif;color:var(--ink);
+  html,body{margin:0;padding:0;height:100%;width:100%;font-family:'Nunito',sans-serif;color:var(--ink);
     background:linear-gradient(180deg,#BFF3E0 0%,#E9FBEF 55%,#FFF7E0 100%);overflow:hidden;}
-  .wrap{max-width:480px;margin:0 auto;padding:14px 12px 18px;display:flex;flex-direction:column;height:100vh;}
-  .back-btn{position:fixed;top:14px;left:14px;width:40px;height:40px;border-radius:50%;background:var(--card-bg);
-    display:flex;align-items:center;justify-content:center;font-size:18px;text-decoration:none;color:var(--ink);
-    box-shadow:0 6px 0 rgba(0,0,0,0.06),0 8px 14px -6px rgba(30,70,53,0.25);z-index:20;}
+  .wrap{position:fixed;inset:0;display:flex;flex-direction:column;}
+  .back-btn{position:fixed;top:12px;left:12px;width:42px;height:42px;border-radius:50%;background:var(--card-bg);
+    display:flex;align-items:center;justify-content:center;font-size:19px;text-decoration:none;color:var(--ink);
+    box-shadow:0 6px 0 rgba(0,0,0,0.06),0 8px 14px -6px rgba(30,70,53,0.3);z-index:20;}
   .back-btn:active{transform:translateY(3px);box-shadow:0 3px 0 rgba(0,0,0,0.06);}
-  h1{font-family:'Baloo 2',sans-serif;font-weight:800;font-size:20px;text-align:center;margin:2px 0;}
-  .hud{display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:14px;color:var(--ink-soft);margin-bottom:6px;}
-  .score-badge{background:#FDEAF0;color:var(--pink-dark);padding:4px 12px;border-radius:20px;font-family:'Baloo 2',sans-serif;font-size:15px;transition:transform 0.2s;}
+  .hud{position:fixed;top:12px;left:64px;right:64px;display:flex;justify-content:space-between;align-items:center;
+    font-weight:700;font-size:13px;color:var(--ink-soft);z-index:20;}
+  .score-badge{background:#FDEAF0;color:var(--pink-dark);padding:5px 13px;border-radius:20px;font-family:'Baloo 2',sans-serif;
+    font-size:15px;box-shadow:0 4px 10px -4px rgba(30,70,53,0.3);transition:transform 0.2s;}
   .score-badge.bump{transform:scale(1.25);}
-  .board-holder{flex:1 1 auto;display:flex;align-items:center;justify-content:center;min-height:0;}
-  canvas{border-radius:18px;box-shadow:0 14px 24px -10px rgba(30,70,53,0.25);touch-action:none;max-width:100%;max-height:100%;}
-  .controls{display:grid;grid-template-columns:58px 58px 58px;grid-template-rows:52px 52px;
-    gap:8px;justify-content:center;margin:14px auto 2px;flex:0 0 auto;}
-  .ctrl-btn{background:var(--card-bg);border:none;border-radius:16px;font-size:21px;color:var(--ink);
-    box-shadow:0 6px 0 rgba(0,0,0,0.06),0 8px 14px -6px rgba(30,70,53,0.2);}
-  .ctrl-btn:active{transform:translateY(3px);box-shadow:0 3px 0 rgba(0,0,0,0.06);}
-  #up{grid-column:2;grid-row:1;} #left{grid-column:1;grid-row:2;}
-  #down{grid-column:2;grid-row:2;} #right{grid-column:3;grid-row:2;}
-  .overlay{position:fixed;inset:0;background:rgba(30,70,53,0.55);display:none;align-items:center;justify-content:center;z-index:10;}
+  .level-badge{background:#fff;padding:5px 13px;border-radius:20px;box-shadow:0 4px 10px -4px rgba(30,70,53,0.3);}
+  .board-holder{flex:1;display:flex;align-items:center;justify-content:center;min-height:0;position:relative;}
+  canvas{border-radius:0;touch-action:none;display:block;}
+  .hint{position:fixed;bottom:10px;left:0;right:0;text-align:center;font-weight:700;color:var(--ink-soft);font-size:12px;z-index:20;}
+  .overlay{position:fixed;inset:0;background:rgba(30,70,53,0.55);display:none;align-items:center;justify-content:center;z-index:30;}
   .overlay.show{display:flex;}
   .modal{background:var(--card-bg);border-radius:22px;padding:26px 24px;text-align:center;max-width:280px;
     box-shadow:0 20px 40px -10px rgba(0,0,0,0.35);}
@@ -43,20 +39,14 @@
 </head>
 <body>
 <a class="back-btn" href="index.html">⬅️</a>
-<div class="wrap">
-  <h1>🐍 Змейка</h1>
-  <div class="hud">
-    <span id="levelLabel">Уровень 1</span>
-    <span class="score-badge" id="score">0</span>
-  </div>
-  <div class="board-holder"><canvas id="board" width="352" height="352"></canvas></div>
-  <div class="controls">
-    <button class="ctrl-btn" id="up">⬆️</button>
-    <button class="ctrl-btn" id="left">⬅️</button>
-    <button class="ctrl-btn" id="down">⬇️</button>
-    <button class="ctrl-btn" id="right">➡️</button>
-  </div>
+<div class="hud">
+  <span class="level-badge" id="levelLabel">Уровень 1</span>
+  <span class="score-badge" id="score">0</span>
 </div>
+<div class="wrap">
+  <div class="board-holder"><canvas id="board"></canvas></div>
+</div>
+<p class="hint">Тапни в сторону, куда ползти, или свайпни</p>
 <div class="overlay" id="overlay">
   <div class="modal">
     <h2>Игра окончена 🍎</h2>
@@ -69,20 +59,31 @@ if(window.Telegram && window.Telegram.WebApp){window.Telegram.WebApp.ready();win
 
 const canvas=document.getElementById('board');
 const ctx=canvas.getContext('2d');
-const cell=16, cols=22, rows=22;
+const cols=22, rows=22;
+let cell=16, W=0, H=0;
+
+function resizeCanvas(){
+  const holder=document.querySelector('.board-holder');
+  const size=Math.floor(Math.min(holder.clientWidth, holder.clientHeight));
+  cell=Math.floor(size/cols);
+  const px=cell*cols;
+  const dpr=Math.min(window.devicePixelRatio||1, 2);
+  canvas.style.width=px+'px'; canvas.style.height=px+'px';
+  canvas.width=px*dpr; canvas.height=px*dpr;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  W=px; H=px;
+}
+window.addEventListener('resize', resizeCanvas);
+
 const BASE_SPEED=170, MIN_SPEED=90, SPEED_STEP=10, APPLES_PER_LEVEL=5;
-// Палитра тела змейки — меняется каждые 5 съеденных яблок
 const PALETTES=[
-  ['#1E9E5E','#7BE3A6'],   // зелёный
-  ['#1B7FA8','#8FD6F5'],   // голубой
-  ['#7647B8','#C8A9F0'],   // фиолетовый
-  ['#C2507A','#F5AFC6'],   // розовый
-  ['#C97A1E','#FFCB80'],   // оранжевый
-  ['#B8367D','#F0A0C8']    // маджента
+  ['#1E9E5E','#7BE3A6'], ['#1B7FA8','#8FD6F5'], ['#7647B8','#C8A9F0'],
+  ['#C2507A','#F5AFC6'], ['#C97A1E','#FFCB80'], ['#B8367D','#F0A0C8']
 ];
 let snake, dir, nextDir, food, score, alive, loopId, level, speed, particles, foodPulse, palette, glowPulse;
 
 function reset(){
+  resizeCanvas();
   snake=[{x:11,y:11},{x:10,y:11},{x:9,y:11}];
   dir={x:1,y:0}; nextDir=dir;
   score=0; alive=true; level=1; speed=BASE_SPEED; particles=[]; foodPulse=0; glowPulse=0;
@@ -142,8 +143,8 @@ function gameOver(){
   document.getElementById('overlay').classList.add('show');
 }
 function draw(){
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  ctx.fillStyle='#F5FFF9'; ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#F5FFF9'; ctx.fillRect(0,0,W,H);
   ctx.fillStyle='rgba(53,197,122,0.06)';
   for(let r=0;r<rows;r++) for(let c=0;c<cols;c++) if((r+c)%2===0) ctx.fillRect(c*cell,r*cell,cell,cell);
   const pulse=Math.sin(foodPulse)*1.5;
@@ -159,7 +160,6 @@ function draw(){
     ctx.beginPath(); ctx.arc(p.x,p.y,2.4,0,Math.PI*2); ctx.fill();
     ctx.globalAlpha=1;
   });
-  // лёгкое свечение вокруг головы
   const headGlow=Math.sin(glowPulse)*3+6;
   if(snake.length){
     const h=snake[0];
@@ -194,26 +194,13 @@ function draw(){
     ctx.beginPath(); ctx.arc(cx+ox+dir.y*4,cy+oy-dir.x*4,1.2,0,Math.PI*2); ctx.fill();
   }
 }
-function hexToRgb(hex){
-  const n=parseInt(hex.slice(1),16);
-  return [(n>>16)&255,(n>>8)&255,n&255];
-}
+function hexToRgb(hex){ const n=parseInt(hex.slice(1),16); return [(n>>16)&255,(n>>8)&255,n&255]; }
 function roundRect(x,y,w,h,r){
   ctx.beginPath();
-  ctx.moveTo(x+r,y);
-  ctx.arcTo(x+w,y,x+w,y+h,r);
-  ctx.arcTo(x+w,y+h,x,y+h,r);
-  ctx.arcTo(x,y+h,x,y,r);
-  ctx.arcTo(x,y,x+w,y,r);
-  ctx.closePath();
+  ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
 }
 function setDir(x,y){ if(dir.x===-x&&dir.y===-y) return; nextDir={x,y}; }
-
-document.getElementById('up').onclick=()=>setDir(0,-1);
-document.getElementById('down').onclick=()=>setDir(0,1);
-document.getElementById('left').onclick=()=>setDir(-1,0);
-document.getElementById('right').onclick=()=>setDir(1,0);
-document.getElementById('restart').onclick=reset;
 
 document.addEventListener('keydown',e=>{
   if(e.key==='ArrowUp') setDir(0,-1);
@@ -222,16 +209,32 @@ document.addEventListener('keydown',e=>{
   if(e.key==='ArrowRight') setDir(1,0);
 });
 
+// Тап или свайп — определяем направление относительно головы змейки
 let touchStartX=0, touchStartY=0;
+function steerToward(clientX, clientY){
+  const rect=canvas.getBoundingClientRect();
+  const px=clientX-rect.left, py=clientY-rect.top;
+  const head=snake[0];
+  const headPxX=head.x*cell+cell/2, headPxY=head.y*cell+cell/2;
+  const ddx=px-headPxX, ddy=py-headPxY;
+  if(Math.abs(ddx)>Math.abs(ddy)) setDir(ddx>0?1:-1,0); else setDir(0,ddy>0?1:-1);
+}
 canvas.addEventListener('touchstart',e=>{
   touchStartX=e.touches[0].clientX; touchStartY=e.touches[0].clientY;
 },{passive:true});
 canvas.addEventListener('touchend',e=>{
   const dx=e.changedTouches[0].clientX-touchStartX;
   const dy=e.changedTouches[0].clientY-touchStartY;
-  if(Math.abs(dx)>Math.abs(dy)){ setDir(dx>0?1:-1,0); } else { setDir(0,dy>0?1:-1); }
+  const dist=Math.hypot(dx,dy);
+  if(dist>26){
+    if(Math.abs(dx)>Math.abs(dy)) setDir(dx>0?1:-1,0); else setDir(0,dy>0?1:-1);
+  } else {
+    steerToward(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+  }
 },{passive:true});
+canvas.addEventListener('click',e=>{ steerToward(e.clientX, e.clientY); });
 
+document.getElementById('restart').onclick=reset;
 reset();
 </script>
 </body>
