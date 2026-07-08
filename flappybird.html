@@ -70,7 +70,7 @@
 <div class="overlay" id="skinOverlay">
   <div class="modal">
     <h2>Скины</h2>
-    <p class="best">Открываются каждые 100 очков рекорда</p>
+    <p class="best">Открываются каждые 50 очков рекорда</p>
     <div class="skins-grid" id="skinsGrid"></div>
     <button class="btn-main" id="closeSkins">Закрыть</button>
   </div>
@@ -90,18 +90,49 @@ function resizeCanvas(){
 }
 window.addEventListener('resize', resizeCanvas);
 
-// ---------- Скины: постоянные, открываются каждые 100 очков рекорда ----------
+// ---------- Скины: постоянные, открываются каждые 50 очков рекорда ----------
 const SKINS=[
-  {id:'classic',  emoji:'🐤', name:'Классика',  unlock:0,   body:'#FFC94D', bodyLight:'#FFE29A', beak:'#FF8A3D', sky:['#8FE0D8','#DFF7EA']},
-  {id:'silver',   emoji:'🕊️', name:'Серебро',   unlock:100, body:'#C7CDD6', bodyLight:'#EDEFF3', beak:'#8B93A1', sky:['#AEB9C7','#E7ECF2']},
-  {id:'gold',     emoji:'🐥', name:'Золото',    unlock:200, body:'#FFD700', bodyLight:'#FFF3B0', beak:'#E8960C', sky:['#FFDD7A','#FFF3D0']},
-  {id:'platinum', emoji:'🦢', name:'Платина',   unlock:300, body:'#E5E8F5', bodyLight:'#FFFFFF', beak:'#B7A8E0', sky:['#D6D9F5','#F3F0FF']},
+  {id:'classic',   emoji:'🐤',  name:'Классика', unlock:0,   body:'#FFC94D', bodyLight:'#FFE29A', beak:'#FF8A3D', sky:['#8FE0D8','#DFF7EA']},
+  {id:'crow',      emoji:'🐦‍⬛', name:'Ворон',    unlock:50,  body:'#2b2b36', bodyLight:'#454554', beak:'#8a8a9a', sky:['#4a4a5a','#2a2a35'], extra:'crow'},
+  {id:'silver',    emoji:'🕊️',  name:'Серебро',  unlock:100, body:'#C7CDD6', bodyLight:'#EDEFF3', beak:'#8B93A1', sky:['#AEB9C7','#E7ECF2']},
+  {id:'sigma',     emoji:'😎',  name:'Сигма',    unlock:150, body:'#3d3d46', bodyLight:'#5c5c68', beak:'#FFD24D', sky:['#232331','#3a3a4a'], extra:'sigma'},
+  {id:'gold',      emoji:'🐥',  name:'Золото',   unlock:200, body:'#FFD700', bodyLight:'#FFF3B0', beak:'#E8960C', sky:['#FFDD7A','#FFF3D0']},
+  {id:'crylaugh',  emoji:'😂',  name:'Плакса',   unlock:250, body:'#FFE24D', bodyLight:'#FFF3A0', beak:'#FF8A3D', sky:['#FFD36E','#FFF0C2'], extra:'crylaugh'},
+  {id:'platinum',  emoji:'🦢',  name:'Платина',  unlock:300, body:'#E5E8F5', bodyLight:'#FFFFFF', beak:'#B7A8E0', sky:['#D6D9F5','#F3F0FF']},
+  {id:'gigachad',  emoji:'🗿',  name:'Гигачад',  unlock:350, body:'#D9D2C4', bodyLight:'#F0ECE0', beak:'#8B7D5A', sky:['#B8AC94','#E8E0CC'], extra:'gigachad'},
 ];
-function getBest(){ return parseInt(localStorage.getItem('flappy_best')||'0',10); }
-function setBest(v){ localStorage.setItem('flappy_best', String(v)); }
+// ---------- Хранение рекорда и скина: Telegram CloudStorage (привязано к аккаунту, не к устройству) ----------
+let BEST=0, SELECTED_SKIN='classic', dataLoaded=false;
+function cloudAvailable(){ return window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.CloudStorage; }
+function loadUserData(cb){
+  if(cloudAvailable()){
+    const tg=window.Telegram.WebApp;
+    tg.CloudStorage.getItem('flappy_best',(err,val)=>{
+      BEST = (!err && val) ? (parseInt(val,10)||0) : (parseInt(localStorage.getItem('flappy_best')||'0',10));
+      tg.CloudStorage.getItem('flappy_skin',(err2,val2)=>{
+        SELECTED_SKIN = (!err2 && val2) ? val2 : (localStorage.getItem('flappy_skin')||'classic');
+        localStorage.setItem('flappy_best', String(BEST));
+        localStorage.setItem('flappy_skin', SELECTED_SKIN);
+        dataLoaded=true; cb();
+      });
+    });
+  } else {
+    BEST=parseInt(localStorage.getItem('flappy_best')||'0',10);
+    SELECTED_SKIN=localStorage.getItem('flappy_skin')||'classic';
+    dataLoaded=true; cb();
+  }
+}
+function getBest(){ return BEST; }
+function setBest(v){
+  BEST=v; localStorage.setItem('flappy_best', String(v));
+  if(cloudAvailable()) window.Telegram.WebApp.CloudStorage.setItem('flappy_best', String(v), ()=>{});
+}
 function getUnlocked(){ const best=getBest(); return SKINS.filter(s=>best>=s.unlock).map(s=>s.id); }
-function getSelectedSkinId(){ return localStorage.getItem('flappy_skin')||'classic'; }
-function setSelectedSkinId(id){ localStorage.setItem('flappy_skin', id); }
+function getSelectedSkinId(){ return SELECTED_SKIN; }
+function setSelectedSkinId(id){
+  SELECTED_SKIN=id; localStorage.setItem('flappy_skin', id);
+  if(cloudAvailable()) window.Telegram.WebApp.CloudStorage.setItem('flappy_skin', id, ()=>{});
+}
 function currentSkin(){ return SKINS.find(s=>s.id===getSelectedSkinId()) || SKINS[0]; }
 
 function renderSkinsGrid(){
@@ -335,6 +366,47 @@ function drawBird(){
     ctx.beginPath(); ctx.arc(bird.r*0.35,-bird.r*0.35,bird.r*0.3,0,Math.PI*2); ctx.fill();
     ctx.fillStyle=mode==='dark'?'#e04040':'#1E4635';
     ctx.beginPath(); ctx.arc(bird.r*0.45,-bird.r*0.35,bird.r*0.14,0,Math.PI*2); ctx.fill();
+
+    // ---- мемные детали для постоянных скинов ----
+    if(v.extra==='crow'){
+      ctx.save(); ctx.globalAlpha=0.35;
+      ctx.strokeStyle='#8B5CF6'; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.ellipse(0,0,bird.r+7,bird.r+5,0,0,Math.PI*2); ctx.stroke();
+      ctx.restore();
+      ctx.fillStyle='#B24040';
+      ctx.beginPath(); ctx.arc(bird.r*0.45,-bird.r*0.35,bird.r*0.14,0,Math.PI*2); ctx.fill();
+    }
+    if(v.extra==='sigma'){
+      ctx.fillStyle='#151515';
+      ctx.fillRect(-bird.r*0.15, -bird.r*0.55, bird.r*0.95, bird.r*0.32);
+      ctx.fillStyle='rgba(255,255,255,0.15)';
+      ctx.fillRect(-bird.r*0.1, -bird.r*0.5, bird.r*0.3, bird.r*0.1);
+      ctx.strokeStyle='#D4AF37'; ctx.lineWidth=1.6;
+      ctx.beginPath();
+      for(let i=0;i<4;i++){ ctx.moveTo(-bird.r*0.4+i*3, bird.r*0.55); ctx.lineTo(-bird.r*0.4+i*3+2, bird.r*0.62); }
+      ctx.stroke();
+    }
+    if(v.extra==='crylaugh'){
+      ctx.fillStyle='#4FB8E8';
+      ctx.beginPath();
+      ctx.moveTo(bird.r*0.35, bird.r*0.05);
+      ctx.quadraticCurveTo(bird.r*0.5, bird.r*0.3, bird.r*0.35, bird.r*0.45);
+      ctx.quadraticCurveTo(bird.r*0.2, bird.r*0.3, bird.r*0.35, bird.r*0.05);
+      ctx.fill();
+      ctx.strokeStyle='#B5680C'; ctx.lineWidth=2; ctx.lineCap='round';
+      ctx.beginPath(); ctx.arc(bird.r*0.05, bird.r*0.35, bird.r*0.32, 0.15*Math.PI, 0.85*Math.PI); ctx.stroke();
+    }
+    if(v.extra==='gigachad'){
+      ctx.fillStyle=v.bodyLight;
+      ctx.beginPath();
+      ctx.moveTo(-bird.r*0.5, bird.r*0.5);
+      ctx.lineTo(bird.r*0.6, bird.r*0.55);
+      ctx.lineTo(bird.r*0.15, bird.r*0.95);
+      ctx.lineTo(-bird.r*0.2, bird.r*0.75);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle='rgba(255,255,255,0.6)'; ctx.lineWidth=1.4;
+      ctx.beginPath(); ctx.moveTo(bird.r*0.15, bird.r*0.6); ctx.lineTo(bird.r*0.1, bird.r*0.9); ctx.stroke();
+    }
   }
   ctx.restore();
 }
@@ -397,8 +469,9 @@ canvas.addEventListener('touchstart',e=>{e.preventDefault();flap();},{passive:fa
 canvas.addEventListener('mousedown',flap);
 document.addEventListener('keydown',e=>{ if(e.code==='Space') flap(); });
 document.getElementById('restart').onclick=reset;
-window.addEventListener('load', reset);
-if(document.readyState==='complete') reset();
+function boot(){ loadUserData(reset); }
+window.addEventListener('load', boot);
+if(document.readyState==='complete') boot();
 </script>
 </body>
 </html>
