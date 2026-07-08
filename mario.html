@@ -14,11 +14,13 @@
     background:#8FE0D8;overflow:hidden;}
   .wrap{position:fixed;inset:0;}
   canvas{display:block;width:100%;height:100%;}
-  .back-btn{position:fixed;top:12px;left:12px;width:42px;height:42px;border-radius:50%;background:var(--card-bg);
-    display:flex;align-items:center;justify-content:center;font-size:19px;text-decoration:none;color:var(--ink);
-    box-shadow:0 6px 0 rgba(0,0,0,0.06),0 8px 14px -6px rgba(30,70,53,0.3);z-index:20;}
-  .back-btn:active{transform:translateY(3px);box-shadow:0 3px 0 rgba(0,0,0,0.06);}
-  .skin-btn{position:fixed;top:12px;right:12px;width:42px;height:42px;border-radius:50%;background:#0f1710;
+  .back-btn{position:fixed;top:12px;left:12px;width:42px;height:42px;border-radius:50%;background:#0f1710;
+    display:flex;align-items:center;justify-content:center;z-index:20;border:2px solid #35C57A;
+    box-shadow:0 6px 0 rgba(0,0,0,0.25),0 8px 14px -6px rgba(0,0,0,0.4), 0 0 14px rgba(53,197,122,0.55);
+    animation:pentagram-glow 2.4s ease-in-out infinite;text-decoration:none;}
+  .back-btn:active{transform:translateY(3px);}
+  .back-btn svg{width:20px;height:20px;filter:drop-shadow(0 0 3px rgba(53,197,122,0.9));}
+  .skin-btn{position:fixed;top:66px;right:12px;width:42px;height:42px;border-radius:50%;background:#0f1710;
     display:flex;align-items:center;justify-content:center;border:2px solid #35C57A;z-index:20;
     box-shadow:0 6px 0 rgba(0,0,0,0.25),0 8px 14px -6px rgba(0,0,0,0.4), 0 0 14px rgba(53,197,122,0.55);
     animation:pentagram-glow 2.4s ease-in-out infinite;}
@@ -66,7 +68,12 @@
 </style>
 </head>
 <body>
-<a class="back-btn" href="index.html">⬅️</a>
+<a class="back-btn" href="index.html">
+  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="50" cy="50" r="46" fill="none" stroke="#35C57A" stroke-width="3" opacity="0.5"/>
+    <path d="M60 20 L32 50 L60 80" fill="none" stroke="#35C57A" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+</a>
 <button class="skin-btn" id="skinBtn">
   <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
     <circle cx="50" cy="50" r="46" fill="none" stroke="#35C57A" stroke-width="4"/>
@@ -128,13 +135,15 @@ window.addEventListener('resize', resizeCanvas);
 
 // ---------- Скины (открываются по рекорду очков) ----------
 const SKINS=[
-  {id:'classic', name:'Классика', unlock:0,   body:'#35C57A', bodyDark:'#1E9E5E', head:'#FFE0B2', cap:'#1E9E5E'},
-  {id:'magma',   name:'Магма',    unlock:50,  body:'#FF5A3D', bodyDark:'#C23B22', head:'#FFE0B2', cap:'#7A1E10'},
-  {id:'ocean',   name:'Океан',    unlock:100, body:'#4FB8E8', bodyDark:'#1B7FA8', head:'#FFE0B2', cap:'#123A52'},
-  {id:'gold',    name:'Золото',   unlock:150, body:'#FFD700', bodyDark:'#B5900C', head:'#FFE0B2', cap:'#7A5D06'},
-  {id:'plasma',  name:'Плазма',   unlock:200, body:'#A87BE0', bodyDark:'#6B3FAE', head:'#FFE0B2', cap:'#3D1E63'},
-  {id:'platinum',name:'Платина',  unlock:250, body:'#E5E8F5', bodyDark:'#AEB4C7', head:'#FFE0B2', cap:'#6E7590'},
+  {id:'classic', name:'Классика', unlock:0,   body:'#2E63C7', bodyDark:'#1D4A9E', shirt:'#E1443B', head:'#FFE0B2', cap:'#E1443B'},
+  {id:'magma',   name:'Магма',    unlock:50,  body:'#7A1E10', bodyDark:'#4E1006', shirt:'#FF5A3D', head:'#FFE0B2', cap:'#FF5A3D'},
+  {id:'ocean',   name:'Океан',    unlock:100, body:'#123A52', bodyDark:'#0A2436', shirt:'#4FB8E8', head:'#FFE0B2', cap:'#4FB8E8'},
+  {id:'gold',    name:'Золото',   unlock:150, body:'#7A5D06', bodyDark:'#503D04', shirt:'#FFD700', head:'#FFE0B2', cap:'#FFD700'},
+  {id:'plasma',  name:'Плазма',   unlock:200, body:'#3D1E63', bodyDark:'#26123F', shirt:'#A87BE0', head:'#FFE0B2', cap:'#A87BE0'},
+  {id:'platinum',name:'Платина',  unlock:250, body:'#6E7590', bodyDark:'#4A4F63', shirt:'#E5E8F5', head:'#FFE0B2', cap:'#E5E8F5'},
 ];
+// Особый тёмный скин "Моргот" — не выбирается вручную, включается временно при событии на 10000 очков
+const MORGOTH_SKIN={ body:'#141418', bodyDark:'#050506', shirt:'#3A0A0A', head:'#2b2b32', cap:'#3A0A0A' };
 let BEST=0, SELECTED_SKIN='classic';
 function cloudAvailable(){ return window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.CloudStorage; }
 function loadUserData(cb){
@@ -242,7 +251,7 @@ function reset(){
   player={
     x:2*tile, y:(GROUND_ROW-1)*tile, w:tile*0.6, h:tile*0.92,
     vx:0, vy:0, grounded:false, dir:1, anim:0, hurtTimer:0,
-    jumpsUsed:0, spinTimer:0, starTimer:0, mushroomTimer:0, scale:1
+    jumpsUsed:0, hangTimer:0, starTimer:0, mushroomTimer:0, morgothTimer:0, scale:1
   };
   camX=0; score=0; coinsCollected=0; lives=3; state='playing'; particles=[]; milestoneShown=new Set();
   document.getElementById('overlay').classList.remove('show');
@@ -253,7 +262,7 @@ function respawn(){
   player.starTimer=0; player.mushroomTimer=0; player.scale=1;
 }
 function loseLife(){
-  if(player.starTimer>0) return;
+  if(player.starTimer>0 || player.morgothTimer>0) return;
   lives--;
   if(lives<=0){ gameOver(false); return; }
   respawn();
@@ -273,6 +282,11 @@ function checkMilestones(){
       else showToast('✨ '+m+' очков! Новый скин доступен');
     }
   });
+  if(score>=10000 && !milestoneShown.has(10000)){
+    milestoneShown.add(10000);
+    player.morgothTimer=1800; // 30 секунд при 60 fps
+    showToast('💀 Тьма пробудилась! 30 сек неуязвимости');
+  }
 }
 
 function rectsOverlapCols(px,pw){ return [Math.floor(px/tile), Math.floor((px+pw-1)/tile)]; }
@@ -296,8 +310,8 @@ function applyBox(box){
 function updatePlayer(){
   if(player.hurtTimer>0) player.hurtTimer--;
   if(player.starTimer>0) player.starTimer--;
+  if(player.morgothTimer>0) player.morgothTimer--;
   if(player.mushroomTimer>0){ player.mushroomTimer--; if(player.mushroomTimer===0) player.scale=1; }
-  if(player.spinTimer>0) player.spinTimer--;
 
   const speedMul = player.mushroomTimer>0 ? 1.3 : 1;
   // управление: тачпад-свайп (сила пропорциональна смещению пальца) или кнопки/клавиши
@@ -312,8 +326,10 @@ function updatePlayer(){
 
   if(inputJumpQueued){
     if(player.grounded){ player.vy=JUMP_V; player.grounded=false; player.jumpsUsed=1; }
-    else if(player.jumpsUsed===1){ player.vy=JUMP2_V; player.jumpsUsed=2; player.spinTimer=18;
-      for(let i=0;i<8;i++) particles.push({x:player.x+player.w/2,y:player.y+player.h,vx:(Math.random()-0.5)*2,vy:Math.random()*1.5,life:16,color:'#fff'});
+    else if(player.jumpsUsed===1){
+      player.vy=JUMP2_V; player.jumpsUsed=2; player.hangTimer=12;
+      player.vx += player.dir*3.2; // рывок вперёд
+      for(let i=0;i<10;i++) particles.push({x:player.x+player.w/2,y:player.y+player.h*0.6,vx:-player.dir*(1+Math.random()*2)-player.vx*0.1,vy:(Math.random()-0.5)*1.5,life:18,color:'#fff'});
     }
   }
   inputJumpQueued=false;
@@ -331,7 +347,8 @@ function updatePlayer(){
     }
   }
 
-  player.vy+=GRAVITY;
+  player.vy+=(player.hangTimer>0 ? GRAVITY*0.18 : GRAVITY);
+  if(player.hangTimer>0) player.hangTimer--;
   player.vy=Math.min(player.vy, TERMINAL_V);
   player.y+=player.vy;
   player.grounded=false;
@@ -392,10 +409,12 @@ function loop(){
 }
 function draw(){
   ctx.clearRect(0,0,W,H);
+  const dark = player.morgothTimer>0;
   const sky=ctx.createLinearGradient(0,0,0,H);
-  sky.addColorStop(0,'#8FE0D8'); sky.addColorStop(1,'#DFF7EA');
+  if(dark){ sky.addColorStop(0,'#15121e'); sky.addColorStop(1,'#26202f'); }
+  else { sky.addColorStop(0,'#8FE0D8'); sky.addColorStop(1,'#DFF7EA'); }
   ctx.fillStyle=sky; ctx.fillRect(0,0,W,H);
-  ctx.save(); ctx.globalAlpha=0.55; ctx.fillStyle='#fff';
+  ctx.save(); ctx.globalAlpha=dark?0.15:0.55; ctx.fillStyle='#fff';
   for(let i=0;i<6;i++){
     const bx=(i*260 - camX*0.3) % (W+300) - 150;
     ctx.beginPath();
@@ -405,8 +424,22 @@ function draw(){
   }
   ctx.restore();
 
+  if(dark){
+    // летающие вороны на фоне
+    ctx.save(); ctx.strokeStyle='#000'; ctx.lineWidth=2; ctx.globalAlpha=0.6;
+    for(let i=0;i<5;i++){
+      const bx=((i*180 + Date.now()/12) % (W+200)) - 100;
+      const by=H*0.18+((i*47)%60);
+      ctx.beginPath();
+      ctx.moveTo(bx-8,by); ctx.quadraticCurveTo(bx-3,by-6,bx,by);
+      ctx.quadraticCurveTo(bx+3,by-6,bx+8,by);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   // дальние холмы (параллакс)
-  ctx.save(); ctx.globalAlpha=0.35; ctx.fillStyle='#5FCB9A';
+  ctx.save(); ctx.globalAlpha=dark?0.2:0.35; ctx.fillStyle=dark?'#2a2333':'#5FCB9A';
   for(let i=0;i<8;i++){
     const hx=(i*180 - camX*0.15) % (W+260) - 130;
     const hy=H*0.62;
@@ -416,7 +449,7 @@ function draw(){
   }
   ctx.restore();
   // ближние холмы (параллакс сильнее)
-  ctx.save(); ctx.globalAlpha=0.45; ctx.fillStyle='#4FBF88';
+  ctx.save(); ctx.globalAlpha=dark?0.28:0.45; ctx.fillStyle=dark?'#1c1826':'#4FBF88';
   for(let i=0;i<10;i++){
     const hx=(i*140 - camX*0.35) % (W+220) - 110;
     const hy=H*0.68;
@@ -462,12 +495,32 @@ function draw(){
       }
     }
   }
+  if(dark){
+    ctx.save(); ctx.globalAlpha=0.55; ctx.fillStyle='#000';
+    for(let c=c1;c<=c2;c+=3){
+      if(!isSolid(c,GROUND_ROW) || c%9>=4) continue;
+      const gx=c*tile-camX, gy=GROUND_ROW*tile;
+      const gh=tile*0.5;
+      ctx.fillRect(gx+tile*0.25, gy-gh, tile*0.5, gh);
+      ctx.fillRect(gx+tile*0.42, gy-gh-tile*0.2, tile*0.16, tile*0.2);
+    }
+    ctx.restore();
+  }
   coins.forEach(co=>{
     if(co.collected) return;
     const x=co.col*tile-camX+tile/2, y=co.row*tile+tile/2;
     if(x<-tile||x>W+tile) return;
-    ctx.fillStyle='#FFD700'; ctx.beginPath(); ctx.arc(x,y,tile*0.22,0,Math.PI*2); ctx.fill();
-    ctx.strokeStyle='#E8A317'; ctx.lineWidth=2; ctx.stroke();
+    const r=tile*0.22;
+    const grad=ctx.createRadialGradient(x-r*0.3,y-r*0.3,r*0.2,x,y,r);
+    grad.addColorStop(0,'#FFF3B0'); grad.addColorStop(1,'#E8A317');
+    ctx.fillStyle=grad;
+    ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='#B5680C'; ctx.lineWidth=1.6; ctx.stroke();
+    ctx.strokeStyle='rgba(255,255,255,0.7)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.arc(x,y,r*0.62,0,Math.PI*2); ctx.stroke();
+    ctx.fillStyle='#B5680C';
+    ctx.font='bold '+(r*1.1)+'px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('¢', x, y+0.5);
   });
   enemies.forEach(en=>{
     if(!en.alive) return;
@@ -505,22 +558,21 @@ function draw(){
   drawPlayer();
   ctx.fillStyle='#1E4635'; ctx.strokeStyle='#fff'; ctx.lineWidth=3;
   ctx.font='bold '+(H*0.04)+'px "Baloo 2", sans-serif'; ctx.textAlign='left'; ctx.textBaseline='alphabetic';
-  ctx.strokeText('🪙 '+coinsCollected+'   ⭐ '+score, 16, H*0.06);
-  ctx.fillText('🪙 '+coinsCollected+'   ⭐ '+score, 16, H*0.06);
+  ctx.strokeText('🪙 '+coinsCollected+'      🪙 '+score, 16, H*0.08);
+  ctx.fillText('🪙 '+coinsCollected+'      🪙 '+score, 16, H*0.08);
   ctx.textAlign='right';
-  ctx.strokeText('❤️ '+lives, W-16, H*0.06);
-  ctx.fillText('❤️ '+lives, W-16, H*0.06);
+  ctx.strokeText('❤️ '+lives, W-16, H*0.08);
+  ctx.fillText('❤️ '+lives, W-16, H*0.08);
 }
 
 function drawPlayer(){
-  const skin=currentSkin();
+  const skin = player.morgothTimer>0 ? MORGOTH_SKIN : currentSkin();
   const scale=player.scale;
   const w=player.w*scale, h=player.h*scale;
   const x=player.x-camX, y=player.y;
   ctx.save();
   ctx.translate(x+w/2, y+h/2);
   if(player.dir<0) ctx.scale(-1,1);
-  if(player.spinTimer>0) ctx.rotate((player.spinTimer/18)*Math.PI*2);
   if(player.starTimer>0){
     const hue=(Date.now()/8)%360;
     ctx.filter=`hue-rotate(${hue}deg) saturate(1.6)`;
@@ -528,9 +580,9 @@ function drawPlayer(){
   if(player.hurtTimer>0 && Math.floor(player.hurtTimer/4)%2===0) ctx.globalAlpha=0.4;
 
   player.anim += Math.abs(player.vx)*0.18;
-  const legOff = player.grounded ? Math.sin(player.anim)*h*0.14 : Math.sin(Date.now()/90)*h*0.06;
+  const legOff = player.grounded ? Math.sin(player.anim)*h*0.14 : (player.hangTimer>0 ? h*0.04 : Math.sin(Date.now()/90)*h*0.06);
 
-  // LEGO-стиль: блочные ноги, прямоугольный торс, цилиндрическая голова со штырьком
+  // LEGO-стиль: блочные ноги (тёмный тон), торс (основной цвет), рукава/кепка (акцентный цвет "рубашки")
   ctx.fillStyle=skin.bodyDark;
   ctx.fillRect(-w*0.26, h*0.24+legOff, w*0.2, h*0.28);
   ctx.fillRect(w*0.06, h*0.24-legOff, w*0.2, h*0.28);
@@ -539,8 +591,11 @@ function drawPlayer(){
   ctx.beginPath();
   if(ctx.roundRect) ctx.roundRect(-w*0.4,-h*0.16,w*0.8,h*0.44,w*0.08); else ctx.rect(-w*0.4,-h*0.16,w*0.8,h*0.44);
   ctx.fill();
-  // руки
-  ctx.fillStyle=skin.body;
+  // нагрудная полоса акцентного цвета
+  ctx.fillStyle=skin.shirt;
+  ctx.fillRect(-w*0.4,-h*0.16,w*0.8,h*0.14);
+  // руки акцентного цвета
+  ctx.fillStyle=skin.shirt;
   ctx.fillRect(-w*0.5,-h*0.1,w*0.12,h*0.32);
   ctx.fillRect(w*0.38,-h*0.1,w*0.12,h*0.32);
 
@@ -549,16 +604,16 @@ function drawPlayer(){
   ctx.beginPath();
   if(ctx.roundRect) ctx.roundRect(-w*0.32,-h*0.5,w*0.64,h*0.36,w*0.14); else ctx.rect(-w*0.32,-h*0.5,w*0.64,h*0.36);
   ctx.fill();
-  // штырёк-кепка сверху
+  // кепка
   ctx.fillStyle=skin.cap;
   ctx.beginPath(); ctx.rect(-w*0.1,-h*0.62,w*0.2,h*0.14); ctx.fill();
   ctx.beginPath(); ctx.rect(-w*0.34,-h*0.52,w*0.68,h*0.12); ctx.fill();
-  // глаза (простые LEGO-точки)
-  ctx.fillStyle='#1E4635';
+  // глаза
+  ctx.fillStyle= player.morgothTimer>0 ? '#ff3b3b' : '#1E4635';
   ctx.beginPath(); ctx.arc(w*0.12,-h*0.35,w*0.045,0,Math.PI*2); ctx.fill();
   ctx.beginPath(); ctx.arc(-w*0.08,-h*0.35,w*0.045,0,Math.PI*2); ctx.fill();
   // улыбка
-  ctx.strokeStyle='#1E4635'; ctx.lineWidth=1.6;
+  ctx.strokeStyle= player.morgothTimer>0 ? '#ff3b3b' : '#1E4635'; ctx.lineWidth=1.6;
   ctx.beginPath(); ctx.arc(0.02*w,-h*0.28,w*0.09,0.1*Math.PI,0.9*Math.PI); ctx.stroke();
 
   ctx.filter='none';
