@@ -14,7 +14,7 @@
     background:#8FE0D8;overflow:hidden;}
   .wrap{position:fixed;inset:0;}
   canvas{display:block;width:100%;height:100%;}
-  .back-btn{position:fixed;top:12px;left:12px;width:42px;height:42px;border-radius:50%;background:#0f1710;
+  .back-btn{position:fixed;top:66px;left:12px;width:42px;height:42px;border-radius:50%;background:#0f1710;
     display:flex;align-items:center;justify-content:center;z-index:20;border:2px solid #35C57A;
     box-shadow:0 6px 0 rgba(0,0,0,0.25),0 8px 14px -6px rgba(0,0,0,0.4), 0 0 14px rgba(53,197,122,0.55);
     animation:pentagram-glow 2.4s ease-in-out infinite;text-decoration:none;}
@@ -240,7 +240,7 @@ function isSolid(col,row){ return solid.has(col+','+row); }
 function solidInfo(col,row){ return solid.get(col+','+row); }
 
 // ---------- Физика ----------
-const GRAVITY=0.55, MOVE_ACCEL=0.7, MAX_SPEED=4.6, FRICTION=0.85, JUMP_V=-12.5, JUMP2_V=-14.8, TERMINAL_V=13;
+const GRAVITY=0.55, MOVE_ACCEL=0.7, MAX_SPEED=4.6, FRICTION=0.85, JUMP_V=-12.5, JUMP2_V=-10.4, TERMINAL_V=13;
 let player, camX, score, coinsCollected, lives, state, particles, milestoneShown;
 let inputLeft=false, inputRight=false, inputJumpQueued=false;
 
@@ -282,8 +282,8 @@ function checkMilestones(){
       else showToast('✨ '+m+' очков! Новый скин доступен');
     }
   });
-  if(score>=10000 && !milestoneShown.has(10000)){
-    milestoneShown.add(10000);
+  if(coinsCollected>=500 && !milestoneShown.has('morgoth')){
+    milestoneShown.add('morgoth');
     player.morgothTimer=1800; // 30 секунд при 60 fps
     showToast('💀 Тьма пробудилась! 30 сек неуязвимости');
   }
@@ -425,6 +425,15 @@ function draw(){
   ctx.restore();
 
   if(dark){
+    // полумесяц
+    ctx.save();
+    const mx=W*0.82, my=H*0.14, mr=H*0.05;
+    ctx.fillStyle='#E8E4F0';
+    ctx.beginPath(); ctx.arc(mx,my,mr,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle= dark ? '#15121e' : '#26202f';
+    ctx.beginPath(); ctx.arc(mx+mr*0.42,my-mr*0.15,mr*0.88,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+
     // летающие вороны на фоне
     ctx.save(); ctx.strokeStyle='#000'; ctx.lineWidth=2; ctx.globalAlpha=0.6;
     for(let i=0;i<5;i++){
@@ -604,17 +613,57 @@ function drawPlayer(){
   ctx.beginPath();
   if(ctx.roundRect) ctx.roundRect(-w*0.32,-h*0.5,w*0.64,h*0.36,w*0.14); else ctx.rect(-w*0.32,-h*0.5,w*0.64,h*0.36);
   ctx.fill();
-  // кепка
-  ctx.fillStyle=skin.cap;
-  ctx.beginPath(); ctx.rect(-w*0.1,-h*0.62,w*0.2,h*0.14); ctx.fill();
-  ctx.beginPath(); ctx.rect(-w*0.34,-h*0.52,w*0.68,h*0.12); ctx.fill();
+  if(player.morgothTimer>0){
+    // тёмная аура вокруг головы
+    ctx.save(); ctx.globalAlpha=0.35;
+    ctx.fillStyle='#6B0F1A';
+    ctx.beginPath(); ctx.arc(0,-h*0.32,w*0.5,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+  // кепка / чёрная корона
+  if(player.morgothTimer>0){
+    ctx.fillStyle='#0a0a0d';
+    ctx.beginPath(); ctx.rect(-w*0.34,-h*0.56,w*0.68,h*0.1); ctx.fill();
+    ctx.beginPath();
+    const spikes=5, baseY=-h*0.56;
+    for(let i=0;i<spikes;i++){
+      const sx=-w*0.3+i*(w*0.6/(spikes-1));
+      ctx.moveTo(sx-w*0.05, baseY);
+      ctx.lineTo(sx, baseY-h*0.16);
+      ctx.lineTo(sx+w*0.05, baseY);
+    }
+    ctx.fill();
+    ctx.fillStyle='#7A0F1A';
+    for(let i=0;i<spikes;i++){
+      const sx=-w*0.3+i*(w*0.6/(spikes-1));
+      ctx.beginPath(); ctx.arc(sx, baseY-h*0.02, w*0.018, 0, Math.PI*2); ctx.fill();
+    }
+  } else {
+    ctx.fillStyle=skin.cap;
+    ctx.beginPath(); ctx.rect(-w*0.1,-h*0.62,w*0.2,h*0.14); ctx.fill();
+    ctx.beginPath(); ctx.rect(-w*0.34,-h*0.52,w*0.68,h*0.12); ctx.fill();
+  }
   // глаза
-  ctx.fillStyle= player.morgothTimer>0 ? '#ff3b3b' : '#1E4635';
-  ctx.beginPath(); ctx.arc(w*0.12,-h*0.35,w*0.045,0,Math.PI*2); ctx.fill();
-  ctx.beginPath(); ctx.arc(-w*0.08,-h*0.35,w*0.045,0,Math.PI*2); ctx.fill();
-  // улыбка
-  ctx.strokeStyle= player.morgothTimer>0 ? '#ff3b3b' : '#1E4635'; ctx.lineWidth=1.6;
-  ctx.beginPath(); ctx.arc(0.02*w,-h*0.28,w*0.09,0.1*Math.PI,0.9*Math.PI); ctx.stroke();
+  if(player.morgothTimer>0){
+    ctx.fillStyle='#ff1a1a';
+    ctx.save(); ctx.shadowColor='#ff1a1a'; ctx.shadowBlur=6;
+    ctx.beginPath(); ctx.ellipse(w*0.12,-h*0.35,w*0.07,w*0.045,0,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(-w*0.08,-h*0.35,w*0.07,w*0.045,0,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+    // злой оскал вместо улыбки
+    ctx.strokeStyle='#ff1a1a'; ctx.lineWidth=1.6;
+    ctx.beginPath(); ctx.arc(0.02*w,-h*0.2,w*0.09,1.1*Math.PI,1.9*Math.PI); ctx.stroke();
+    ctx.fillStyle='#fff';
+    ctx.beginPath(); ctx.moveTo(-0.02*w,-h*0.26); ctx.lineTo(-0.05*w,-h*0.22); ctx.lineTo(0.01*w,-h*0.22); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(0.1*w,-h*0.26); ctx.lineTo(0.07*w,-h*0.22); ctx.lineTo(0.13*w,-h*0.22); ctx.fill();
+  } else {
+    ctx.fillStyle='#1E4635';
+    ctx.beginPath(); ctx.arc(w*0.12,-h*0.35,w*0.045,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(-w*0.08,-h*0.35,w*0.045,0,Math.PI*2); ctx.fill();
+    // улыбка
+    ctx.strokeStyle='#1E4635'; ctx.lineWidth=1.6;
+    ctx.beginPath(); ctx.arc(0.02*w,-h*0.28,w*0.09,0.1*Math.PI,0.9*Math.PI); ctx.stroke();
+  }
 
   ctx.filter='none';
   ctx.restore();
