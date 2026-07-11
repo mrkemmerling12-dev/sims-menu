@@ -15,19 +15,21 @@
   .wrap{position:fixed;inset:0;display:flex;flex-direction:column;}
   .board-holder{flex:1;position:relative;min-height:0;}
   canvas{display:block;width:100%;height:100%;}
-  .back-btn,.skin-btn{position:fixed;top:12px;width:42px;height:42px;border-radius:50%;background:var(--card-bg);
-    display:flex;align-items:center;justify-content:center;font-size:19px;text-decoration:none;color:var(--ink);
-    box-shadow:0 6px 0 rgba(0,0,0,0.06),0 8px 14px -6px rgba(30,70,53,0.3);z-index:20;border:none;}
-  .back-btn{left:12px;}
-  .skin-btn{right:12px;font-size:22px;border:2px solid #35C57A;background:#0f1710;
+  .icon-btn{position:fixed;width:42px;height:42px;border-radius:50%;background:#0f1710;
+    display:flex;align-items:center;justify-content:center;text-decoration:none;color:var(--ink);
+    z-index:20;border:2px solid #35C57A;
     box-shadow:0 6px 0 rgba(0,0,0,0.25),0 8px 14px -6px rgba(0,0,0,0.4), 0 0 14px rgba(53,197,122,0.55);
     animation:pentagram-glow 2.4s ease-in-out infinite;}
+  .icon-btn:active{transform:translateY(3px);}
+  .icon-btn svg{width:20px;height:20px;filter:drop-shadow(0 0 3px rgba(53,197,122,0.9));}
+  .back-btn{top:12px;left:12px;}
+  .skin-btn{top:66px;right:12px;font-size:22px;}
+  .pause-btn{top:12px;right:12px;}
+  .records-btn{top:66px;left:12px;}
   @keyframes pentagram-glow{
     0%,100%{ box-shadow:0 6px 0 rgba(0,0,0,0.25),0 8px 14px -6px rgba(0,0,0,0.4), 0 0 10px rgba(53,197,122,0.45); }
     50%{ box-shadow:0 6px 0 rgba(0,0,0,0.25),0 8px 14px -6px rgba(0,0,0,0.4), 0 0 20px rgba(53,197,122,0.85); }
   }
-  .skin-btn svg{width:22px;height:22px;filter:drop-shadow(0 0 3px rgba(53,197,122,0.9));}
-  .back-btn:active,.skin-btn:active{transform:translateY(3px);box-shadow:0 3px 0 rgba(0,0,0,0.06);}
   .overlay{position:fixed;inset:0;background:rgba(30,70,53,0.55);display:none;align-items:center;justify-content:center;z-index:30;}
   .overlay.show{display:flex;}
   .modal{background:var(--card-bg);border-radius:22px;padding:26px 24px;text-align:center;max-width:310px;width:88%;
@@ -48,12 +50,31 @@
 </style>
 </head>
 <body>
-<a class="back-btn" href="index.html">⬅️</a>
-<button class="skin-btn" id="skinBtn">
+<a class="icon-btn back-btn" href="index.html">
+  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="50" cy="50" r="46" fill="none" stroke="#35C57A" stroke-width="3" opacity="0.5"/>
+    <path d="M60 20 L32 50 L60 80" fill="none" stroke="#35C57A" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+</a>
+<button class="icon-btn skin-btn" id="skinBtn">
   <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
     <circle cx="50" cy="50" r="46" fill="none" stroke="#35C57A" stroke-width="4"/>
     <polygon points="50,8 61,38 93,38 67,57 77,88 50,69 23,88 33,57 7,38 39,38"
       fill="none" stroke="#35C57A" stroke-width="4" stroke-linejoin="round"/>
+  </svg>
+</button>
+<button class="icon-btn pause-btn" id="pauseBtn">
+  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="50" cy="50" r="46" fill="none" stroke="#35C57A" stroke-width="3" opacity="0.5"/>
+    <rect x="34" y="28" width="12" height="44" fill="#35C57A"/>
+    <rect x="56" y="28" width="12" height="44" fill="#35C57A"/>
+  </svg>
+</button>
+<button class="icon-btn records-btn" id="recordsBtn">
+  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="50" cy="50" r="46" fill="none" stroke="#35C57A" stroke-width="3" opacity="0.5"/>
+    <path d="M50 15 L58 38 L83 38 L62 52 L70 76 L50 62 L30 76 L38 52 L17 38 L42 38 Z"
+      fill="#35C57A"/>
   </svg>
 </button>
 <div class="wrap">
@@ -73,6 +94,14 @@
     <p class="best">Открываются каждые 50 очков рекорда</p>
     <div class="skins-grid" id="skinsGrid"></div>
     <button class="btn-main" id="closeSkins">Закрыть</button>
+  </div>
+</div>
+<div class="overlay" id="recordsOverlay">
+  <div class="modal">
+    <h2>🏆 Мои рекорды</h2>
+    <p class="best">Топ-10 твоих лучших попыток (хранится за твоим аккаунтом)</p>
+    <div id="recordsList" style="text-align:left;margin:10px 0;max-height:240px;overflow-y:auto;"></div>
+    <button class="btn-main" id="closeRecords">Закрыть</button>
   </div>
 </div>
 <script>
@@ -134,6 +163,41 @@ function setSelectedSkinId(id){
   if(cloudAvailable()) window.Telegram.WebApp.CloudStorage.setItem('flappy_skin', id, ()=>{});
 }
 function currentSkin(){ return SKINS.find(s=>s.id===getSelectedSkinId()) || SKINS[0]; }
+
+// ---------- Личные рекорды (топ-10 попыток) ----------
+let RECORDS=[];
+function loadRecords(cb){
+  if(cloudAvailable()){
+    window.Telegram.WebApp.CloudStorage.getItem('flappy_records',(err,val)=>{
+      try{ RECORDS = (!err && val) ? JSON.parse(val) : JSON.parse(localStorage.getItem('flappy_records')||'[]'); }
+      catch(e){ RECORDS=[]; }
+      cb && cb();
+    });
+  } else {
+    try{ RECORDS=JSON.parse(localStorage.getItem('flappy_records')||'[]'); } catch(e){ RECORDS=[]; }
+    cb && cb();
+  }
+}
+function saveRecordEntry(sc){
+  if(sc<=0) return;
+  const entry={score:sc, date:new Date().toLocaleDateString('ru-RU')};
+  RECORDS.push(entry);
+  RECORDS.sort((a,b)=>b.score-a.score);
+  RECORDS=RECORDS.slice(0,10);
+  const json=JSON.stringify(RECORDS);
+  localStorage.setItem('flappy_records', json);
+  if(cloudAvailable()) window.Telegram.WebApp.CloudStorage.setItem('flappy_records', json, ()=>{});
+}
+function renderRecords(){
+  const list=document.getElementById('recordsList');
+  if(!RECORDS.length){ list.innerHTML='<p style="text-align:center;color:var(--ink-soft);font-weight:700;">Пока пусто — сыграй разок!</p>'; return; }
+  list.innerHTML = RECORDS.map((r,i)=>
+    `<div style="display:flex;justify-content:space-between;padding:6px 4px;border-bottom:1px solid #eee;font-weight:700;">
+      <span>${i+1}. ${r.score} очков</span><span style="color:var(--ink-soft);font-size:12px;">${r.date}</span>
+    </div>`).join('');
+}
+document.getElementById('recordsBtn').onclick=()=>{ renderRecords(); document.getElementById('recordsOverlay').classList.add('show'); };
+document.getElementById('closeRecords').onclick=()=>{ document.getElementById('recordsOverlay').classList.remove('show'); };
 
 function renderSkinsGrid(){
   const grid=document.getElementById('skinsGrid');
@@ -222,6 +286,11 @@ function spawnPipe(){
 function pipeW(){ return W*0.135; }
 function groundH(){ return H*0.02; }
 function loop(){
+  if(state==='paused'){
+    draw();
+    drawPauseOverlay();
+    return;
+  }
   if(state==='countdown'){
     countdownTimer++;
     if(countdownTimer%40===0){ countdownVal--; }
@@ -486,6 +555,7 @@ function gameOver(){
   const best=getBest();
   const wasNewBest = score>best;
   if(wasNewBest) setBest(score);
+  saveRecordEntry(score);
   document.getElementById('overTitle').textContent = wasNewBest ? 'Новый рекорд! 🏆' : 'Игра окончена 🪶';
   document.getElementById('finalScore').textContent='Счёт: '+score;
   document.getElementById('bestScore').textContent='Рекорд: '+getBest();
@@ -496,7 +566,29 @@ canvas.addEventListener('touchstart',e=>{e.preventDefault();flap();},{passive:fa
 canvas.addEventListener('mousedown',flap);
 document.addEventListener('keydown',e=>{ if(e.code==='Space') flap(); });
 document.getElementById('restart').onclick=reset;
-function boot(){ loadUserData(reset); }
+
+// ---------- Пауза ----------
+let pausedFrom=null;
+document.getElementById('pauseBtn').onclick=()=>{
+  if(state==='playing'){
+    pausedFrom='playing'; state='paused';
+  } else if(state==='paused'){
+    state='countdown'; countdownVal=3; countdownTimer=0;
+    requestAnimationFrame(loop);
+  }
+};
+function drawPauseOverlay(){
+  ctx.fillStyle='rgba(0,0,0,0.45)';
+  ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#fff';
+  ctx.font='bold '+(H*0.07)+'px "Baloo 2", sans-serif';
+  ctx.textAlign='center';
+  ctx.fillText('Пауза', W/2, H/2);
+  ctx.font='bold '+(H*0.024)+'px "Nunito", sans-serif';
+  ctx.fillText('Нажми на паузу ещё раз, чтобы продолжить', W/2, H/2+H*0.05);
+}
+
+function boot(){ loadUserData(()=>{ loadRecords(()=>{ reset(); }); }); }
 window.addEventListener('load', boot);
 if(document.readyState==='complete') boot();
 </script>
