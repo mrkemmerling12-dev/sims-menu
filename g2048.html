@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>2048</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{--ink:#1E4635;--ink-soft:#4C7767;--green:#35C57A;--green-dark:#1E9E5E;--card-bg:#FFFFFF;}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;}
+  html,body{margin:0;padding:0;height:100%;width:100%;font-family:'Nunito',sans-serif;color:var(--ink);
+    background:linear-gradient(180deg,#BFF3E0 0%,#E9FBEF 55%,#FFF7E0 100%);overflow:hidden;}
+  .wrap{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;padding:70px 14px 16px;}
+  .icon-btn{position:fixed;width:42px;height:42px;border-radius:50%;background:#0f1710;
+    display:flex;align-items:center;justify-content:center;text-decoration:none;color:var(--ink);
+    z-index:20;border:2px solid #35C57A;
+    box-shadow:0 6px 0 rgba(0,0,0,0.25),0 8px 14px -6px rgba(0,0,0,0.4), 0 0 14px rgba(53,197,122,0.55);
+    animation:pentagram-glow 2.4s ease-in-out infinite;}
+  .icon-btn:active{transform:translateY(3px);}
+  .icon-btn svg{width:20px;height:20px;filter:drop-shadow(0 0 3px rgba(53,197,122,0.9));}
+  .back-btn{top:12px;left:12px;}
+  .skin-btn{top:66px;right:12px;}
+  .records-btn{top:66px;left:12px;}
+  @keyframes pentagram-glow{
+    0%,100%{ box-shadow:0 6px 0 rgba(0,0,0,0.25),0 8px 14px -6px rgba(0,0,0,0.4), 0 0 10px rgba(53,197,122,0.45); }
+    50%{ box-shadow:0 6px 0 rgba(0,0,0,0.25),0 8px 14px -6px rgba(0,0,0,0.4), 0 0 20px rgba(53,197,122,0.85); }
+  }
+  h1{font-family:'Baloo 2',sans-serif;font-weight:800;font-size:22px;margin:0 0 8px;text-align:center;}
+  .hud{display:flex;gap:10px;margin-bottom:14px;}
+  .pill{background:#fff;border-radius:16px;padding:7px 16px;text-align:center;box-shadow:0 6px 14px -8px rgba(30,70,53,0.3);min-width:70px;}
+  .pill .label{font-size:10px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.4px;}
+  .pill .value{font-family:'Baloo 2',sans-serif;font-weight:800;font-size:19px;}
+  .board-outer{flex:1;display:flex;align-items:center;justify-content:center;width:100%;min-height:0;}
+  .board{position:relative;background:#B8A99A;border-radius:16px;box-shadow:0 14px 24px -10px rgba(30,70,53,0.3);touch-action:none;}
+  .cell-bg{position:absolute;background:rgba(255,255,255,0.35);border-radius:10px;}
+  .tile{position:absolute;display:flex;align-items:center;justify-content:center;border-radius:10px;
+    font-family:'Baloo 2',sans-serif;font-weight:800;box-shadow:0 4px 8px -3px rgba(0,0,0,0.25);
+    transition:left 0.12s ease, top 0.12s ease;}
+  .tile.new{animation:tile-in 0.18s ease;}
+  .tile.merged{animation:tile-pop 0.18s ease;}
+  @keyframes tile-in{from{transform:scale(0.3);opacity:0;}to{transform:scale(1);opacity:1;}}
+  @keyframes tile-pop{0%{transform:scale(1);}50%{transform:scale(1.18);}100%{transform:scale(1);}}
+  .hint{text-align:center;font-weight:700;color:var(--ink-soft);font-size:12px;margin-top:12px;}
+  .overlay{position:fixed;inset:0;background:rgba(30,70,53,0.55);display:none;align-items:center;justify-content:center;z-index:30;}
+  .overlay.show{display:flex;}
+  .modal{background:var(--card-bg);border-radius:22px;padding:26px 24px;text-align:center;max-width:300px;width:88%;
+    box-shadow:0 20px 40px -10px rgba(0,0,0,0.35);}
+  .modal h2{font-family:'Baloo 2',sans-serif;margin:0 0 8px;font-size:22px;color:var(--green-dark);}
+  .modal p{font-weight:700;color:var(--ink-soft);margin:0 0 10px;}
+  .btn-main{background:linear-gradient(135deg,var(--green),#7BE3A6);border:none;color:#fff;font-family:'Baloo 2',sans-serif;
+    font-weight:700;font-size:16px;padding:12px 26px;border-radius:16px;box-shadow:0 8px 0 var(--green-dark);margin-top:6px;}
+  .btn-main:active{transform:translateY(4px);box-shadow:0 4px 0 var(--green-dark);}
+  .btn-secondary{background:#fff;color:var(--green-dark);border:2px solid var(--green);font-family:'Baloo 2',sans-serif;
+    font-weight:700;font-size:14px;padding:9px 18px;border-radius:14px;margin-top:8px;}
+  .skins-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0;}
+  .skin-opt{aspect-ratio:1/1;border-radius:14px;background:#F5FFF9;border:2px solid transparent;display:flex;
+    flex-direction:column;align-items:center;justify-content:center;font-size:20px;position:relative;gap:2px;}
+  .skin-opt .name{font-size:9px;font-weight:700;color:var(--ink-soft);}
+  .skin-opt.locked{opacity:0.35;}
+  .skin-opt.active{border-color:var(--green-dark);}
+  .skin-opt .lock{position:absolute;bottom:2px;right:4px;font-size:9px;color:var(--ink-soft);font-weight:700;}
+</style>
+</head>
+<body>
+<a class="icon-btn back-btn" href="index.html">
+  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="50" cy="50" r="46" fill="none" stroke="#35C57A" stroke-width="3" opacity="0.5"/>
+    <path d="M60 20 L32 50 L60 80" fill="none" stroke="#35C57A" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+</a>
+<button class="icon-btn skin-btn" id="skinBtn">
+  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="50" cy="50" r="46" fill="none" stroke="#35C57A" stroke-width="4"/>
+    <polygon points="50,8 61,38 93,38 67,57 77,88 50,69 23,88 33,57 7,38 39,38"
+      fill="none" stroke="#35C57A" stroke-width="4" stroke-linejoin="round"/>
+  </svg>
+</button>
+<button class="icon-btn records-btn" id="recordsBtn">
+  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="50" cy="50" r="46" fill="none" stroke="#35C57A" stroke-width="3" opacity="0.5"/>
+    <path d="M50 15 L58 38 L83 38 L62 52 L70 76 L50 62 L30 76 L38 52 L17 38 L42 38 Z" fill="#35C57A"/>
+  </svg>
+</button>
+
+<div class="wrap">
+  <h1>🔢 2048</h1>
+  <div class="hud">
+    <div class="pill"><div class="label">Очки</div><div class="value" id="scoreVal">0</div></div>
+    <div class="pill"><div class="label">Рекорд</div><div class="value" id="bestVal">0</div></div>
+  </div>
+  <div class="board-outer"><div class="board" id="board"></div></div>
+  <p class="hint">Свайпай в любую сторону, чтобы сдвинуть плитки</p>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h2 id="overTitle">Ходов не осталось 😵</h2>
+    <p id="overText">Очки: 0</p>
+    <button class="btn-main" id="restart">Заново</button>
+  </div>
+</div>
+<div class="overlay" id="winOverlay">
+  <div class="modal">
+    <h2>2048! 🎉</h2>
+    <p>Ты собрал плитку 2048! Можно продолжать играть дальше и побить свой рекорд.</p>
+    <button class="btn-main" id="continueBtn">Играть дальше</button>
+  </div>
+</div>
+<div class="overlay" id="skinOverlay">
+  <div class="modal">
+    <h2>Темы поля</h2>
+    <p class="best">Открываются, когда соберёшь нужную плитку</p>
+    <div class="skins-grid" id="skinsGrid"></div>
+    <button class="btn-main" id="closeSkins">Закрыть</button>
+  </div>
+</div>
+<div class="overlay" id="recordsOverlay">
+  <div class="modal">
+    <h2>🏆 Мои рекорды</h2>
+    <p class="best">Топ-10 твоих лучших попыток</p>
+    <div id="recordsList" style="text-align:left;margin:10px 0;max-height:240px;overflow-y:auto;"></div>
+    <button class="btn-main" id="closeRecords">Закрыть</button>
+  </div>
+</div>
+<script>
+if(window.Telegram && window.Telegram.WebApp){window.Telegram.WebApp.ready();window.Telegram.WebApp.expand();}
+
+// ---------- Темы (открываются по максимальной собранной плитке) ----------
+const THEMES=[
+  {id:'classic', name:'Классика', unlock:0,   boardBg:'#B8A99A', colors:{2:'#EEE4DA',4:'#EDE0C8',8:'#F2B179',16:'#F59563',32:'#F67C5F',64:'#F65E3B',128:'#EDCF72',256:'#EDCC61',512:'#EDC850',1024:'#EDC53F',2048:'#EDC22E'}},
+  {id:'ocean',   name:'Океан',    unlock:128, boardBg:'#274156', colors:{2:'#DCEFFB',4:'#B9E1F7',8:'#7FC8ED',16:'#4FB8E8',32:'#2E9BD6',64:'#1B7FA8',128:'#155E80',256:'#0F4A66',512:'#0A3550',1024:'#062338',2048:'#03141F'}},
+  {id:'sunset',  name:'Закат',    unlock:512, boardBg:'#3D1E2E', colors:{2:'#FFE0C2',4:'#FFC79A',8:'#FFA36B',16:'#FF7F50',32:'#F5637A',64:'#E14D8C',128:'#C23B8F',256:'#9A2E8A',512:'#732280',1024:'#4E1866',2048:'#2E0F4D'}},
+  {id:'forest',  name:'Лес',      unlock:1024,boardBg:'#1E3A2B', colors:{2:'#DFF5E1',4:'#BEEBC2',8:'#93DE9C',16:'#6BCB77',32:'#4FB85C',64:'#379E45',128:'#2A8339',256:'#1F692E',512:'#154F22',1024:'#0D3818',2048:'#062410'}},
+  {id:'plasma',  name:'Плазма',   unlock:2048,boardBg:'#1A1030', colors:{2:'#E8D9FF',4:'#D3B8FF',8:'#B98CFF',16:'#A363F5',32:'#8C3FE0',64:'#7228C4',128:'#5C1BA3',256:'#471382',512:'#340C63',1024:'#210645',2048:'#12022B'}},
+];
+let BEST=0, MAXTILE=0, SELECTED_THEME='classic';
+function cloudAvailable(){ return window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.CloudStorage; }
+function loadUserData(cb){
+  if(cloudAvailable()){
+    const tg=window.Telegram.WebApp;
+    tg.CloudStorage.getItem('g2048_best',(err,val)=>{
+      BEST=(!err&&val)?(parseInt(val,10)||0):(parseInt(localStorage.getItem('g2048_best')||'0',10));
+      tg.CloudStorage.getItem('g2048_maxtile',(err2,val2)=>{
+        MAXTILE=(!err2&&val2)?(parseInt(val2,10)||0):(parseInt(localStorage.getItem('g2048_maxtile')||'0',10));
+        tg.CloudStorage.getItem('g2048_theme',(err3,val3)=>{
+          SELECTED_THEME=(!err3&&val3)?val3:(localStorage.getItem('g2048_theme')||'classic');
+          localStorage.setItem('g2048_best',String(BEST));
+          localStorage.setItem('g2048_maxtile',String(MAXTILE));
+          localStorage.setItem('g2048_theme',SELECTED_THEME);
+          cb();
+        });
+      });
+    });
+  } else {
+    BEST=parseInt(localStorage.getItem('g2048_best')||'0',10);
+    MAXTILE=parseInt(localStorage.getItem('g2048_maxtile')||'0',10);
+    SELECTED_THEME=localStorage.getItem('g2048_theme')||'classic';
+    cb();
+  }
+}
+function setBest(v){ BEST=v; localStorage.setItem('g2048_best',String(v)); if(cloudAvailable()) window.Telegram.WebApp.CloudStorage.setItem('g2048_best',String(v),()=>{}); }
+function setMaxTile(v){ MAXTILE=v; localStorage.setItem('g2048_maxtile',String(v)); if(cloudAvailable()) window.Telegram.WebApp.CloudStorage.setItem('g2048_maxtile',String(v),()=>{}); }
+function setTheme(id){ SELECTED_THEME=id; localStorage.setItem('g2048_theme',id); if(cloudAvailable()) window.Telegram.WebApp.CloudStorage.setItem('g2048_theme',id,()=>{}); }
+function getUnlockedThemes(){ return THEMES.filter(t=>MAXTILE>=t.unlock).map(t=>t.id); }
+function currentTheme(){ return THEMES.find(t=>t.id===SELECTED_THEME) || THEMES[0]; }
+function renderSkinsGrid(){
+  const grid=document.getElementById('skinsGrid');
+  grid.innerHTML='';
+  const unlocked=getUnlockedThemes();
+  THEMES.forEach(t=>{
+    const isUnlocked=unlocked.includes(t.id);
+    const div=document.createElement('div');
+    div.className='skin-opt'+(isUnlocked?'':' locked')+(t.id===SELECTED_THEME?' active':'');
+    div.innerHTML=`<div style="width:20px;height:20px;border-radius:5px;background:${isUnlocked?t.colors[128]:'#ccc'}"></div>`+
+      `<span class="name">${isUnlocked?t.name:'???'}</span>`+(isUnlocked?'':`<span class="lock">${t.unlock}</span>`);
+    if(isUnlocked) div.onclick=()=>{ setTheme(t.id); applyTheme(); renderSkinsGrid(); };
+    grid.appendChild(div);
+  });
+}
+function applyTheme(){
+  document.getElementById('board').style.background=currentTheme().boardBg;
+  renderTiles();
+}
+document.getElementById('skinBtn').onclick=()=>{ renderSkinsGrid(); document.getElementById('skinOverlay').classList.add('show'); };
+document.getElementById('closeSkins').onclick=()=>{ document.getElementById('skinOverlay').classList.remove('show'); };
+
+// ---------- Личные рекорды ----------
+let RECORDS=[];
+function loadRecords(cb){
+  if(cloudAvailable()){
+    window.Telegram.WebApp.CloudStorage.getItem('g2048_records',(err,val)=>{
+      try{ RECORDS=(!err&&val)?JSON.parse(val):JSON.parse(localStorage.getItem('g2048_records')||'[]'); } catch(e){ RECORDS=[]; }
+      cb&&cb();
+    });
+  } else {
+    try{ RECORDS=JSON.parse(localStorage.getItem('g2048_records')||'[]'); } catch(e){ RECORDS=[]; }
+    cb&&cb();
+  }
+}
+function saveRecordEntry(sc){
+  if(sc<=0) return;
+  RECORDS.push({score:sc, date:new Date().toLocaleDateString('ru-RU')});
+  RECORDS.sort((a,b)=>b.score-a.score);
+  RECORDS=RECORDS.slice(0,10);
+  const json=JSON.stringify(RECORDS);
+  localStorage.setItem('g2048_records', json);
+  if(cloudAvailable()) window.Telegram.WebApp.CloudStorage.setItem('g2048_records', json, ()=>{});
+}
+function renderRecords(){
+  const list=document.getElementById('recordsList');
+  if(!RECORDS.length){ list.innerHTML='<p style="text-align:center;color:var(--ink-soft);font-weight:700;">Пока пусто — сыграй разок!</p>'; return; }
+  list.innerHTML=RECORDS.map((r,i)=>`<div style="display:flex;justify-content:space-between;padding:6px 4px;border-bottom:1px solid #eee;font-weight:700;">
+    <span>${i+1}. ${r.score} очков</span><span style="color:var(--ink-soft);font-size:12px;">${r.date}</span></div>`).join('');
+}
+document.getElementById('recordsBtn').onclick=()=>{ renderRecords(); document.getElementById('recordsOverlay').classList.add('show'); };
+document.getElementById('closeRecords').onclick=()=>{ document.getElementById('recordsOverlay').classList.remove('show'); };
+
+// ---------- Игровая логика 2048 ----------
+const SIZE=4;
+let grid, score, best, alive, wonShown, nextId, tilesEls;
+const boardEl=document.getElementById('board');
+let boardPx=320, cellPx=70, gapPx=10;
+
+function resizeBoard(){
+  const outer=document.querySelector('.board-outer');
+  const maxSize=Math.min(outer.clientWidth, outer.clientHeight, 480);
+  boardPx=Math.floor(maxSize*0.94);
+  gapPx=Math.floor(boardPx*0.03);
+  cellPx=(boardPx-gapPx*(SIZE+1))/SIZE;
+  boardEl.style.width=boardPx+'px';
+  boardEl.style.height=boardPx+'px';
+  renderBackground();
+  renderTiles();
+}
+window.addEventListener('resize', resizeBoard);
+
+function renderBackground(){
+  const old=boardEl.querySelectorAll('.cell-bg');
+  old.forEach(e=>e.remove());
+  for(let r=0;r<SIZE;r++) for(let c=0;c<SIZE;c++){
+    const d=document.createElement('div');
+    d.className='cell-bg';
+    d.style.width=cellPx+'px'; d.style.height=cellPx+'px';
+    d.style.left=(gapPx+c*(cellPx+gapPx))+'px';
+    d.style.top=(gapPx+r*(cellPx+gapPx))+'px';
+    boardEl.appendChild(d);
+  }
+}
+
+function emptyGrid(){ return Array.from({length:SIZE},()=>Array(SIZE).fill(null)); }
+function randomEmptyCell(){
+  const empties=[];
+  for(let r=0;r<SIZE;r++) for(let c=0;c<SIZE;c++) if(!grid[r][c]) empties.push([r,c]);
+  if(!empties.length) return null;
+  return empties[Math.floor(Math.random()*empties.length)];
+}
+function spawnTile(){
+  const cell=randomEmptyCell();
+  if(!cell) return;
+  const [r,c]=cell;
+  grid[r][c]={id:nextId++, value: Math.random()<0.9?2:4, r, c, isNew:true, merged:false};
+}
+function reset(){
+  resizeBoard();
+  grid=emptyGrid(); score=0; alive=true; wonShown=false; nextId=1;
+  document.getElementById('scoreVal').textContent='0';
+  document.getElementById('bestVal').textContent=String(BEST);
+  document.getElementById('overlay').classList.remove('show');
+  document.getElementById('winOverlay').classList.remove('show');
+  spawnTile(); spawnTile();
+  applyTheme();
+}
+
+function cloneLine(line){ return line.filter(t=>t); }
+function moveLine(line){
+  // line: массив тайлов (без null), в порядке движения
+  let moved=false, gained=0;
+  const result=[];
+  let i=0;
+  while(i<line.length){
+    const cur=line[i];
+    if(i+1<line.length && line[i+1].value===cur.value){
+      const merged={id:nextId++, value:cur.value*2, isNew:false, merged:true};
+      result.push(merged);
+      gained+=merged.value;
+      i+=2; moved=true;
+    } else {
+      result.push({...cur, merged:false, isNew:false});
+      i++;
+    }
+  }
+  return {result, gained};
+}
+function getLine(dir, index){
+  const line=[];
+  for(let k=0;k<SIZE;k++){
+    let r,c;
+    if(dir==='left'){ r=index; c=k; }
+    else if(dir==='right'){ r=index; c=SIZE-1-k; }
+    else if(dir==='up'){ r=k; c=index; }
+    else { r=SIZE-1-k; c=index; }
+    line.push(grid[r][c]);
+  }
+  return line;
+}
+function setLine(dir, index, newLine){
+  for(let k=0;k<SIZE;k++){
+    let r,c;
+    if(dir==='left'){ r=index; c=k; }
+    else if(dir==='right'){ r=index; c=SIZE-1-k; }
+    else if(dir==='up'){ r=k; c=index; }
+    else { r=SIZE-1-k; c=index; }
+    const tile=newLine[k] || null;
+    if(tile){ tile.r=r; tile.c=c; }
+    grid[r][c]=tile;
+  }
+}
+function move(dir){
+  if(!alive) return;
+  let moved=false, gained=0;
+  for(let i=0;i<SIZE;i++){
+    const line=cloneLine(getLine(dir,i));
+    const before=line.map(t=>t.id).join(',');
+    const {result,gained:g}=moveLine(line);
+    gained+=g;
+    while(result.length<SIZE) result.push(null);
+    const after=result.filter(t=>t).map(t=>t.id).join(',');
+    const beforeLen=line.length, afterLen=result.filter(t=>t).length;
+    if(beforeLen!==afterLen || before!==after) moved=true;
+    setLine(dir,i,result);
+  }
+  if(!moved) return;
+  score+=gained;
+  document.getElementById('scoreVal').textContent=String(score);
+  spawnTile();
+  renderTiles();
+  checkMaxTile();
+  if(score>BEST){ BEST=score; setBest(score); document.getElementById('bestVal').textContent=String(BEST); }
+  if(!canMove()){ alive=false; saveRecordEntry(score); showGameOver(); }
+}
+function checkMaxTile(){
+  let maxV=0;
+  for(let r=0;r<SIZE;r++) for(let c=0;c<SIZE;c++) if(grid[r][c]) maxV=Math.max(maxV, grid[r][c].value);
+  if(maxV>MAXTILE) setMaxTile(maxV);
+  if(maxV>=2048 && !wonShown){ wonShown=true; document.getElementById('winOverlay').classList.add('show'); }
+}
+function canMove(){
+  for(let r=0;r<SIZE;r++) for(let c=0;c<SIZE;c++){
+    if(!grid[r][c]) return true;
+    const v=grid[r][c].value;
+    if(c<SIZE-1 && grid[r][c+1] && grid[r][c+1].value===v) return true;
+    if(r<SIZE-1 && grid[r+1][c] && grid[r+1][c].value===v) return true;
+  }
+  return false;
+}
+function showGameOver(){
+  document.getElementById('overText').textContent='Очки: '+score;
+  document.getElementById('overlay').classList.add('show');
+}
+function tileColor(v){
+  const th=currentTheme();
+  return th.colors[v] || th.colors[2048] || '#3C3A32';
+}
+function tileTextColor(v){ return v<=4 ? '#6B5D4F' : '#fff'; }
+function renderTiles(){
+  boardEl.querySelectorAll('.tile').forEach(e=>e.remove());
+  for(let r=0;r<SIZE;r++) for(let c=0;c<SIZE;c++){
+    const t=grid[r][c];
+    if(!t) continue;
+    const d=document.createElement('div');
+    d.className='tile'+(t.isNew?' new':'')+(t.merged?' merged':'');
+    d.style.width=cellPx+'px'; d.style.height=cellPx+'px';
+    d.style.left=(gapPx+c*(cellPx+gapPx))+'px';
+    d.style.top=(gapPx+r*(cellPx+gapPx))+'px';
+    d.style.background=tileColor(t.value);
+    d.style.color=tileTextColor(t.value);
+    d.style.fontSize=(cellPx*(t.value>512?0.34:0.42))+'px';
+    d.textContent=t.value;
+    boardEl.appendChild(d);
+    t.isNew=false; t.merged=false;
+  }
+}
+
+// ---------- Ввод ----------
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowLeft') move('left');
+  if(e.key==='ArrowRight') move('right');
+  if(e.key==='ArrowUp') move('up');
+  if(e.key==='ArrowDown') move('down');
+});
+let touchStartX=0, touchStartY=0;
+boardEl.addEventListener('touchstart',e=>{
+  touchStartX=e.touches[0].clientX; touchStartY=e.touches[0].clientY;
+},{passive:true});
+boardEl.addEventListener('touchend',e=>{
+  const dx=e.changedTouches[0].clientX-touchStartX;
+  const dy=e.changedTouches[0].clientY-touchStartY;
+  if(Math.max(Math.abs(dx),Math.abs(dy))<20) return;
+  if(Math.abs(dx)>Math.abs(dy)) move(dx>0?'right':'left'); else move(dy>0?'down':'up');
+},{passive:true});
+
+document.getElementById('restart').onclick=reset;
+document.getElementById('continueBtn').onclick=()=>{ document.getElementById('winOverlay').classList.remove('show'); };
+
+function boot(){ loadUserData(()=>{ loadRecords(()=>{ reset(); }); }); }
+window.addEventListener('load', boot);
+if(document.readyState==='complete') boot();
+</script>
+</body>
+</html>
