@@ -263,8 +263,8 @@ function spawnTile(){
   grid[r][c]={id:nextId++, value: Math.random()<0.9?2:4, r, c, isNew:true, merged:false};
 }
 function reset(){
-  resizeBoard();
   grid=emptyGrid(); score=0; alive=true; wonShown=false; nextId=1;
+  resizeBoard();
   document.getElementById('scoreVal').textContent='0';
   document.getElementById('bestVal').textContent=String(BEST);
   document.getElementById('overlay').classList.remove('show');
@@ -365,6 +365,7 @@ function tileColor(v){
 }
 function tileTextColor(v){ return v<=4 ? '#6B5D4F' : '#fff'; }
 function renderTiles(){
+  if(!grid) return;
   boardEl.querySelectorAll('.tile').forEach(e=>e.remove());
   for(let r=0;r<SIZE;r++) for(let c=0;c<SIZE;c++){
     const t=grid[r][c];
@@ -390,23 +391,55 @@ document.addEventListener('keydown',e=>{
   if(e.key==='ArrowUp') move('up');
   if(e.key==='ArrowDown') move('down');
 });
-let touchStartX=0, touchStartY=0;
-boardEl.addEventListener('touchstart',e=>{
-  touchStartX=e.touches[0].clientX; touchStartY=e.touches[0].clientY;
-},{passive:true});
-boardEl.addEventListener('touchend',e=>{
-  const dx=e.changedTouches[0].clientX-touchStartX;
-  const dy=e.changedTouches[0].clientY-touchStartY;
+// Pointer Events вместо touchstart/touchend — работают одинаково для тача и мыши,
+// не зависят от особенностей e.touches в WebView Telegram
+let dragStartX=0, dragStartY=0, dragActive=false;
+boardEl.addEventListener('pointerdown', e=>{
+  dragActive=true; dragStartX=e.clientX; dragStartY=e.clientY;
+});
+boardEl.addEventListener('pointerup', e=>{
+  if(!dragActive) return;
+  dragActive=false;
+  const dx=e.clientX-dragStartX;
+  const dy=e.clientY-dragStartY;
   if(Math.max(Math.abs(dx),Math.abs(dy))<20) return;
   if(Math.abs(dx)>Math.abs(dy)) move(dx>0?'right':'left'); else move(dy>0?'down':'up');
-},{passive:true});
+});
+boardEl.addEventListener('pointercancel', ()=>{ dragActive=false; });
 
 document.getElementById('restart').onclick=reset;
 document.getElementById('continueBtn').onclick=()=>{ document.getElementById('winOverlay').classList.remove('show'); };
 
-function boot(){ loadUserData(()=>{ loadRecords(()=>{ reset(); }); }); }
+// ---------- Запуск: с защитой на случай, если CloudStorage недоступен (старые версии Telegram) ----------
+function safeCloudAvailable(){
+  try{
+    return !!(window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.CloudStorage
+      && typeof window.Telegram.WebApp.CloudStorage.getItem === 'function');
+  } catch(e){ return false; }
+}
+let booted=false;
+function boot(){
+  if(booted) return;
+  booted=true;
+  try{
+    if(!safeCloudAvailable()){
+      // нет облака — берём локальное хранилище и сразу стартуем
+      BEST=parseInt(localStorage.getItem('g2048_best')||'0',10);
+      MAXTILE=parseInt(localStorage.getItem('g2048_maxtile')||'0',10);
+      SELECTED_THEME=localStorage.getItem('g2048_theme')||'classic';
+      try{ RECORDS=JSON.parse(localStorage.getItem('g2048_records')||'[]'); } catch(e){ RECORDS=[]; }
+      reset();
+      return;
+    }
+    loadUserData(()=>{ loadRecords(()=>{ reset(); }); });
+  } catch(err){
+    console.error('2048 boot error, starting with defaults:', err);
+    reset();
+  }
+}
 window.addEventListener('load', boot);
 if(document.readyState==='complete') boot();
 </script>
+
 </body>
 </html>
