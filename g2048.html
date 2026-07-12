@@ -11,6 +11,7 @@
   :root{--ink:#1E4635;--ink-soft:#4C7767;--green:#35C57A;--green-dark:#1E9E5E;--card-bg:#FFFFFF;}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;}
   html,body{margin:0;padding:0;height:100%;width:100%;font-family:'Nunito',sans-serif;color:var(--ink);
+    touch-action:none;overscroll-behavior:none;
     background:linear-gradient(180deg,#BFF3E0 0%,#E9FBEF 55%,#FFF7E0 100%);overflow:hidden;}
   .wrap{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;padding:70px 14px 16px;}
   .icon-btn{position:fixed;width:42px;height:42px;border-radius:50%;background:#0f1710;
@@ -125,7 +126,12 @@
   </div>
 </div>
 <script>
-if(window.Telegram && window.Telegram.WebApp){window.Telegram.WebApp.ready();window.Telegram.WebApp.expand();}
+if(window.Telegram && window.Telegram.WebApp){
+  const tg=window.Telegram.WebApp;
+  tg.ready(); tg.expand();
+  if(typeof tg.disableVerticalSwipes==='function') tg.disableVerticalSwipes();
+  if(typeof tg.isVerticalSwipesEnabled!=='undefined') tg.isVerticalSwipesEnabled=false;
+}
 
 // ---------- Темы (открываются по максимальной собранной плитке) ----------
 const THEMES=[
@@ -396,16 +402,22 @@ document.addEventListener('keydown',e=>{
 let dragStartX=0, dragStartY=0, dragActive=false;
 boardEl.addEventListener('pointerdown', e=>{
   dragActive=true; dragStartX=e.clientX; dragStartY=e.clientY;
+  e.preventDefault();
+});
+boardEl.addEventListener('pointermove', e=>{
+  if(dragActive) e.preventDefault();
 });
 boardEl.addEventListener('pointerup', e=>{
   if(!dragActive) return;
   dragActive=false;
+  e.preventDefault();
   const dx=e.clientX-dragStartX;
   const dy=e.clientY-dragStartY;
   if(Math.max(Math.abs(dx),Math.abs(dy))<20) return;
   if(Math.abs(dx)>Math.abs(dy)) move(dx>0?'right':'left'); else move(dy>0?'down':'up');
 });
 boardEl.addEventListener('pointercancel', ()=>{ dragActive=false; });
+document.body.addEventListener('touchmove', e=>{ e.preventDefault(); }, {passive:false});
 
 document.getElementById('restart').onclick=reset;
 document.getElementById('continueBtn').onclick=()=>{ document.getElementById('winOverlay').classList.remove('show'); };
