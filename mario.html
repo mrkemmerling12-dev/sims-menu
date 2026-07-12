@@ -11,6 +11,7 @@
   :root{--ink:#1E4635;--ink-soft:#4C7767;--green:#35C57A;--green-dark:#1E9E5E;--card-bg:#FFFFFF;--yellow:#FFC94D;}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;}
   html,body{margin:0;padding:0;height:100%;width:100%;font-family:'Nunito',sans-serif;color:var(--ink);
+    touch-action:none;overscroll-behavior:none;
     background:#8FE0D8;overflow:hidden;}
   .wrap{position:fixed;inset:0;}
   canvas{display:block;width:100%;height:100%;}
@@ -116,12 +117,18 @@
   </div>
 </div>
 <script>
-if(window.Telegram && window.Telegram.WebApp){window.Telegram.WebApp.ready();window.Telegram.WebApp.expand();}
+if(window.Telegram && window.Telegram.WebApp){
+  const tg=window.Telegram.WebApp;
+  tg.ready(); tg.expand();
+  if(typeof tg.disableVerticalSwipes==='function') tg.disableVerticalSwipes();
+}
 
 const canvas=document.getElementById('board');
 const ctx=canvas.getContext('2d');
 let W=0,H=0,tile=32;
-const ROWS=13, GROUND_ROW=10, LEVEL_COLS=100;
+const ROWS=13, GROUND_ROW=10;
+let LEVEL_COLS=100, currentLevel=1;
+const TOTAL_LEVELS=5;
 
 function resizeCanvas(){
   const dpr=Math.min(window.devicePixelRatio||1, 2);
@@ -199,42 +206,79 @@ function showToast(msg){
 }
 
 // ---------- Уровень ----------
-let solid, boxes, coins, enemies, flagCol, pitRanges;
+let solid, boxes, coins, enemies, popups, flagCol, pitRanges;
 function inPit(col){ return pitRanges.some(p=>col>=p[0] && col<=p[1]); }
-function buildLevel(){
-  solid=new Map();
-  pitRanges=[[14,15],[32,33],[50,51],[68,69],[84,85]];
-  boxes=[]; coins=[]; enemies=[];
-  for(let c=0;c<LEVEL_COLS;c++){
-    if(!inPit(c)) solid.set(c+','+GROUND_ROW, {type:'ground'});
+function pickBoxKind(level){
+  const r=Math.random();
+  if(level>=3 && r<0.14) return 'star';
+  if(r<0.14+(level>=2?0.14:0)) return 'mushroom';
+  if(r<0.28+(level>=2?0.14:0)+0.08) return 'heart';
+  return 'coin';
+}
+function buildLevel(level){
+  LEVEL_COLS = 90 + level*14;
+  const pitCount = 3+level;
+  const pitWidth = level>=4 ? 3 : 2;
+  solid=new Map(); boxes=[]; coins=[]; enemies=[]; popups=[];
+  pitRanges=[];
+  const startBuffer=6, endBuffer=10;
+  const usable=LEVEL_COLS-startBuffer-endBuffer;
+  const spacing=usable/(pitCount+1);
+  for(let i=1;i<=pitCount;i++){
+    const center=Math.round(startBuffer+spacing*i);
+    pitRanges.push([center, center+pitWidth-1]);
   }
-  const platformDefs=[
-    {start:18, len:4, row:GROUND_ROW-3},
-    {start:38, len:4, row:GROUND_ROW-3},
-    {start:56, len:5, row:GROUND_ROW-4},
-    {start:72, len:4, row:GROUND_ROW-3},
-    {start:88, len:4, row:GROUND_ROW-3},
-  ];
-  platformDefs.forEach(p=>{ for(let i=0;i<p.len;i++) solid.set((p.start+i)+','+p.row, {type:'platform'}); });
+  for(let c=0;c<LEVEL_COLS;c++){ if(!inPit(c)) solid.set(c+','+GROUND_ROW, {type:'ground'}); }
 
-  // Вопрос-блоки со случайными бонусами
-  const boxTypes=['coin','coin','coin','star','mushroom','heart','coin','star'];
-  const boxCols=[6, 10, 22, 26, 42, 46, 60, 64, 76, 80, 92];
-  boxCols.forEach((c,i)=>{
-    const row=GROUND_ROW-3;
-    const box={col:c,row,used:false,kind:boxTypes[i%boxTypes.length]};
+  // платформы с блоками между ямами
+  for(let i=0;i<pitRanges.length-1;i++){
+    const midStart=pitRanges[i][1]+3;
+    const midEnd=pitRanges[i+1][0]-3;
+    if(midEnd-midStart<4) continue;
+    const len=4+(i%2);
+    const row=GROUND_ROW-3-(i%2);
+    const start=midStart+Math.max(0,Math.floor((midEnd-midStart-len)/2));
+    for(let k=0;k<len && start+k<midEnd;k++) solid.set((start+k)+','+row, {type:'platform'});
+    const bc=Math.min(start+Math.floor(len/2), LEVEL_COLS-2);
+    const box={col:bc,row:row-1,used:false,kind:pickBoxKind(level)};
     boxes.push(box);
-    solid.set(c+','+row, {type:'box', box});
-  });
-  const coinCols=[14,15,32,33,50,51,68,69,84,85, 19,20,21, 39,40,41, 89,90];
-  coinCols.forEach((c,i)=>{ coins.push({col:c, row:GROUND_ROW-5-(i%2), collected:false}); });
+    solid.set(box.col+','+box.row, {type:'box', box});
+  }
+  // блок в самом начале
+  const firstBox={col:6,row:GROUND_ROW-3,used:false,kind:'coin'};
+  boxes.push(firstBox); solid.set(firstBox.col+','+firstBox.row,{type:'box',box:firstBox});
 
-  enemies.push({x:24*tile, minX:22*tile, maxX:30*tile, dir:1, alive:true});
-  enemies.push({x:43*tile, minX:40*tile, maxX:48*tile, dir:-1, alive:true});
-  enemies.push({x:62*tile, minX:59*tile, maxX:67*tile, dir:1, alive:true});
-  enemies.push({x:78*tile, minX:76*tile, maxX:83*tile, dir:-1, alive:true});
-  enemies.push({x:96*tile, minX:93*tile, maxX:99*tile, dir:1, alive:true});
-  flagCol=97;
+  // монетки над ямами
+  pitRanges.forEach(p=>{
+    for(let c=p[0]; c<=p[1]; c++) coins.push({col:c, row:GROUND_ROW-5, collected:false});
+  });
+  // немного монет в воздухе на старте
+  [16,17,18].forEach(c=>coins.push({col:c,row:GROUND_ROW-6,collected:false}));
+
+  // враги: набор типов растёт вместе с уровнем, скорость и количество тоже
+  const types=['bomb'];
+  if(level>=2) types.push('speedy');
+  if(level>=3) types.push('floater');
+  if(level>=4) types.push('spiky');
+  const enemyCount = 3+level;
+  const baseSpeed = 1.2 + level*0.32;
+  for(let i=0;i<enemyCount;i++){
+    const segIndex = i % Math.max(1,pitRanges.length-1);
+    if(!pitRanges[segIndex] || !pitRanges[segIndex+1]) continue;
+    const segStart = pitRanges[segIndex][1]+2;
+    const segEnd = pitRanges[segIndex+1][0]-2;
+    if(segEnd-segStart<3) continue;
+    const type=types[Math.floor(Math.random()*types.length)];
+    const spread=Math.max(1,segEnd-segStart-2);
+    const x0=(segStart+1+Math.random()*spread)*tile;
+    enemies.push({
+      type, x:x0, minX:segStart*tile, maxX:segEnd*tile,
+      dir: Math.random()<0.5?1:-1, alive:true,
+      phase:Math.random()*Math.PI*2,
+      speed: baseSpeed*(type==='speedy'?1.55:1)
+    });
+  }
+  flagCol=LEVEL_COLS-4;
 }
 function isSolid(col,row){ return solid.has(col+','+row); }
 function solidInfo(col,row){ return solid.get(col+','+row); }
@@ -246,16 +290,25 @@ let inputLeft=false, inputRight=false, inputJumpQueued=false;
 
 function reset(){
   resizeCanvas();
-  buildLevel();
+  currentLevel=1;
+  buildLevel(currentLevel);
   const skin=currentSkin();
   player={
     x:2*tile, y:(GROUND_ROW-1)*tile, w:tile*0.6, h:tile*0.92,
     vx:0, vy:0, grounded:false, dir:1, anim:0, hurtTimer:0,
-    jumpsUsed:0, hangTimer:0, starTimer:0, mushroomTimer:0, morgothTimer:0, scale:1
+    jumpsUsed:0, hangTimer:0, starTimer:0, mushroomTimer:0, morgothTimer:0, jumpBoostTimer:0, scale:1
   };
   camX=0; score=0; coinsCollected=0; lives=3; state='playing'; particles=[]; milestoneShown=new Set();
   document.getElementById('overlay').classList.remove('show');
   requestAnimationFrame(loop);
+}
+function nextLevel(){
+  currentLevel++;
+  if(currentLevel>TOTAL_LEVELS){ gameOver(true); return; }
+  buildLevel(currentLevel);
+  player.x=2*tile; player.y=(GROUND_ROW-1)*tile; player.vx=0; player.vy=0;
+  camX=0; particles=[];
+  showToast('🚩 Уровень '+currentLevel+'! Держись крепче');
 }
 function respawn(){
   player.x=2*tile; player.y=(GROUND_ROW-1)*tile; player.vx=0; player.vy=0; player.hurtTimer=50;
@@ -270,8 +323,8 @@ function loseLife(){
 function gameOver(won){
   state='over';
   if(score>BEST){ setBest(score); }
-  document.getElementById('overTitle').textContent = won ? 'Финиш! 🏁' : 'Игра окончена 💥';
-  document.getElementById('overText').textContent = 'Монеты: '+coinsCollected+'   Очки: '+score+(score>BEST?'':'   Рекорд: '+BEST);
+  document.getElementById('overTitle').textContent = won ? 'Все уровни пройдены! 🏆' : 'Игра окончена 💥';
+  document.getElementById('overText').textContent = (won?('Уровень '+TOTAL_LEVELS+' из '+TOTAL_LEVELS+' — ') : ('Уровень '+currentLevel+' — '))+'Монеты: '+coinsCollected+'   Очки: '+score+(score>BEST?'':'   Рекорд: '+BEST);
   document.getElementById('overlay').classList.add('show');
 }
 function checkMilestones(){
@@ -294,16 +347,22 @@ function rectsOverlapRows(py,ph){ return [Math.floor(py/tile), Math.floor((py+ph
 
 function applyBox(box){
   box.used=true;
-  if(box.kind==='star'){
+  popups.push({col:box.col, row:box.row, kind:box.kind, riseFrame:0, bob:Math.random()*Math.PI*2, collected:false});
+  const cx=box.col*tile+tile/2, cy=box.row*tile;
+  for(let i=0;i<6;i++) particles.push({x:cx,y:cy,vx:(Math.random()-0.5)*2,vy:-Math.random()*2,life:16,color:'#FFD700'});
+}
+function collectPopup(p){
+  p.collected=true;
+  if(p.kind==='star'){
     player.starTimer=360; showToast('⭐ Неуязвимость!');
-  } else if(box.kind==='mushroom'){
+  } else if(p.kind==='mushroom'){
     player.mushroomTimer=480; player.scale=1.3; showToast('🍄 Ускорение и рост!');
-  } else if(box.kind==='heart'){
+  } else if(p.kind==='heart'){
     if(lives<5){ lives++; showToast('❤️ Дополнительная жизнь!'); } else { score+=30; showToast('❤️ Жизни максимум! +30 очков'); }
   } else {
     score+=20; coinsCollected++; showToast('🪙 +20 очков');
   }
-  const cx=box.col*tile+tile/2, cy=box.row*tile;
+  const cx=p.col*tile+tile/2, cy=p.row*tile;
   for(let i=0;i<8;i++) particles.push({x:cx,y:cy,vx:(Math.random()-0.5)*3,vy:-Math.random()*3,life:20,color:'#FFD700'});
 }
 
@@ -311,6 +370,7 @@ function updatePlayer(){
   if(player.hurtTimer>0) player.hurtTimer--;
   if(player.starTimer>0) player.starTimer--;
   if(player.morgothTimer>0) player.morgothTimer--;
+  if(player.jumpBoostTimer>0) player.jumpBoostTimer--;
   if(player.mushroomTimer>0){ player.mushroomTimer--; if(player.mushroomTimer===0) player.scale=1; }
 
   const speedMul = player.mushroomTimer>0 ? 1.3 : 1;
@@ -324,10 +384,11 @@ function updatePlayer(){
   const maxSp=MAX_SPEED*speedMul;
   player.vx=Math.max(-maxSp, Math.min(maxSp, player.vx));
 
+  const jumpMul = player.jumpBoostTimer>0 ? 1.25 : 1;
   if(inputJumpQueued){
-    if(player.grounded){ player.vy=JUMP_V; player.grounded=false; player.jumpsUsed=1; }
+    if(player.grounded){ player.vy=JUMP_V*jumpMul; player.grounded=false; player.jumpsUsed=1; }
     else if(player.jumpsUsed===1){
-      player.vy=JUMP2_V; player.jumpsUsed=2; player.hangTimer=12;
+      player.vy=JUMP2_V*jumpMul; player.jumpsUsed=2; player.hangTimer=12;
       player.vx += player.dir*3.2; // рывок вперёд
       for(let i=0;i<10;i++) particles.push({x:player.x+player.w/2,y:player.y+player.h*0.6,vx:-player.dir*(1+Math.random()*2)-player.vx*0.1,vy:(Math.random()-0.5)*1.5,life:18,color:'#fff'});
     }
@@ -376,25 +437,50 @@ function updatePlayer(){
     }
   });
 
+  // всплывшие предметы из блоков — сначала выпрыгивают, потом их нужно коснуться
+  popups.forEach(p=>{
+    if(p.collected) return;
+    p.riseFrame++;
+    const riseProgress=Math.min(1, p.riseFrame/14);
+    const floatY = -tile*0.9*riseProgress + (riseProgress>=1 ? Math.sin(Date.now()/220+p.bob)*tile*0.08 : 0);
+    p.drawY = p.row*tile + floatY;
+    if(riseProgress<1) return; // ещё выпрыгивает, коснуться нельзя
+    const cx=p.col*tile+tile/2, cy=p.drawY+tile/2;
+    const px=player.x+w/2, py=player.y+h/2;
+    if(Math.hypot(cx-px,cy-py)<tile*0.62){ collectPopup(p); }
+  });
+  popups=popups.filter(p=>!p.collected);
+
   enemies.forEach(en=>{
     if(!en.alive) return;
-    en.x+=en.dir*1.5;
+    const spd=en.speed||1.5;
+    en.x+=en.dir*spd;
     if(en.x<en.minX||en.x>en.maxX) en.dir*=-1;
-    const ex=en.x, ey=(GROUND_ROW-1)*tile, ew=tile*0.7, eh=tile*0.7;
-    if(player.x<ex+ew && player.x+w>ex && player.y<ey+eh && player.y+h>ey){
-      if(player.starTimer>0){
+    let ey=(GROUND_ROW-1)*tile;
+    if(en.type==='floater'){ ey -= tile*1.6 + Math.sin(Date.now()/260+en.phase)*tile*0.5; }
+    const ew=tile*0.7, eh=tile*0.7;
+    if(player.x<en.x+ew && player.x+w>en.x && player.y<ey+eh && player.y+h>ey){
+      if(player.starTimer>0 || player.morgothTimer>0){
         en.alive=false; score+=30;
-        for(let i=0;i<10;i++) particles.push({x:ex+ew/2,y:ey+eh/2,vx:(Math.random()-0.5)*4,vy:(Math.random()-1)*4,life:22,color:'#FFD700'});
-      } else if(player.vy>0 && (player.y+h)-ey<tile*0.5){
+        for(let i=0;i<10;i++) particles.push({x:en.x+ew/2,y:ey+eh/2,vx:(Math.random()-0.5)*4,vy:(Math.random()-1)*4,life:22,color:'#FFD700'});
+        return;
+      }
+      const stompable = en.type!=='spiky';
+      const isStomp = stompable && player.vy>0 && (player.y+h)-ey<tile*0.5;
+      if(isStomp){
         en.alive=false; player.vy=JUMP_V*0.6; score+=50;
-        for(let i=0;i<10;i++) particles.push({x:ex+ew/2,y:ey+eh/2,vx:(Math.random()-0.5)*4,vy:(Math.random()-1)*4,life:22,color:'#3A3A46'});
+        const col = en.type==='speedy' ? '#FF5A3D' : en.type==='floater' ? '#7BE3A6' : '#3A3A46';
+        for(let i=0;i<10;i++) particles.push({x:en.x+ew/2,y:ey+eh/2,vx:(Math.random()-0.5)*4,vy:(Math.random()-1)*4,life:22,color:col});
+        // бафы за разных врагов
+        if(en.type==='speedy'){ player.mushroomTimer=360; player.scale=Math.max(player.scale,1.15); showToast('💨 Ускорение от врага!'); }
+        else if(en.type==='floater'){ player.jumpBoostTimer=360; showToast('🪽 Прыжок стал выше!'); }
       } else if(player.hurtTimer<=0){
         loseLife();
       }
     }
   });
 
-  if(player.x/tile>flagCol-1){ gameOver(true); return; }
+  if(player.x/tile>flagCol-1){ nextLevel(); return; }
 
   checkMilestones();
   particles.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=0.15;p.life--;});
@@ -499,8 +585,7 @@ function draw(){
       if(!info.box.used){
         ctx.fillStyle='#8B5E1E';
         ctx.font='bold '+(tile*0.5)+'px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
-        const icon = info.box.kind==='star'?'★':info.box.kind==='mushroom'?'M':info.box.kind==='heart'?'♥':'?';
-        ctx.fillText(icon, x+tile/2, y+tile/2+1);
+        ctx.fillText('?', x+tile/2, y+tile/2+1);
       }
     }
   }
@@ -531,18 +616,67 @@ function draw(){
     ctx.font='bold '+(r*1.1)+'px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
     ctx.fillText('¢', x, y+0.5);
   });
+  popups.forEach(p=>{
+    const x=p.col*tile-camX+tile/2, y=(p.drawY!==undefined?p.drawY:p.row*tile)+tile/2;
+    if(x<-tile||x>W+tile) return;
+    const r=tile*0.28;
+    const iconColor = p.kind==='star'?'#FFD700':p.kind==='mushroom'?'#FF5A3D':p.kind==='heart'?'#FF5577':'#FFD700';
+    ctx.fillStyle=iconColor;
+    ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='rgba(0,0,0,0.2)'; ctx.lineWidth=1.6; ctx.stroke();
+    ctx.fillStyle='#fff';
+    ctx.font='bold '+(r*1.1)+'px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    const icon = p.kind==='star'?'★':p.kind==='mushroom'?'🍄':p.kind==='heart'?'♥':'¢';
+    ctx.fillText(icon, x, y+0.5);
+  });
   enemies.forEach(en=>{
     if(!en.alive) return;
-    const x=en.x-camX, y=(GROUND_ROW-1)*tile, s=tile*0.7;
+    let ey=(GROUND_ROW-1)*tile;
+    if(en.type==='floater'){ ey -= tile*1.6 + Math.sin(Date.now()/260+en.phase)*tile*0.5; }
+    const x=en.x-camX, y=ey, s=tile*0.7;
     if(x<-tile||x>W+tile) return;
-    ctx.fillStyle='rgba(30,70,53,0.2)'; ctx.beginPath(); ctx.ellipse(x+s/2,y+s+3,s*0.42,s*0.12,0,0,Math.PI*2); ctx.fill();
-    ctx.fillStyle='#2b2b36'; ctx.beginPath(); ctx.arc(x+s/2,y+s/2+2,s/2,0,Math.PI*2); ctx.fill();
-    ctx.strokeStyle='#ff5a3d'; ctx.lineWidth=2;
-    ctx.beginPath(); ctx.moveTo(x+s/2,y-2); ctx.lineTo(x+s/2,y-s*0.3); ctx.stroke();
-    ctx.fillStyle='#ff5a3d'; ctx.beginPath(); ctx.arc(x+s/2,y-s*0.32,3,0,Math.PI*2); ctx.fill();
-    ctx.fillStyle='#fff';
-    ctx.beginPath(); ctx.arc(x+s*0.35,y+s*0.45,2.4,0,Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.arc(x+s*0.65,y+s*0.45,2.4,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='rgba(30,70,53,0.2)';
+    ctx.beginPath(); ctx.ellipse(x+s/2, (GROUND_ROW-1)*tile+s+3, s*0.42, s*0.12, 0,0,Math.PI*2); ctx.fill();
+    if(en.type==='spiky'){
+      ctx.fillStyle='#7A1E1E';
+      ctx.beginPath(); ctx.arc(x+s/2,y+s/2+2,s/2,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='#B5312A';
+      for(let i=0;i<6;i++){
+        const ang=(i/6)*Math.PI*2;
+        ctx.beginPath();
+        ctx.moveTo(x+s/2+Math.cos(ang)*s*0.5, y+s/2+2+Math.sin(ang)*s*0.5);
+        ctx.lineTo(x+s/2+Math.cos(ang)*s*0.8, y+s/2+2+Math.sin(ang)*s*0.8);
+        ctx.lineTo(x+s/2+Math.cos(ang+0.25)*s*0.5, y+s/2+2+Math.sin(ang+0.25)*s*0.5);
+        ctx.fill();
+      }
+      ctx.fillStyle='#fff';
+      ctx.beginPath(); ctx.arc(x+s*0.35,y+s*0.45,2.4,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(x+s*0.65,y+s*0.45,2.4,0,Math.PI*2); ctx.fill();
+    } else if(en.type==='floater'){
+      ctx.fillStyle='#1E9E5E';
+      ctx.beginPath(); ctx.ellipse(x+s/2,y+s/2+2,s*0.55,s*0.4,0,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='rgba(123,227,166,0.5)';
+      const flap=Math.sin(Date.now()/90)*4;
+      ctx.beginPath(); ctx.ellipse(x+s*0.1,y+s/2+flap,s*0.32,s*0.14,0.3,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(x+s*0.9,y+s/2-flap,s*0.32,s*0.14,-0.3,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='#fff';
+      ctx.beginPath(); ctx.arc(x+s*0.35,y+s*0.42,2.2,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(x+s*0.65,y+s*0.42,2.2,0,Math.PI*2); ctx.fill();
+    } else {
+      const bodyColor = en.type==='speedy' ? '#FF5A3D' : '#2b2b36';
+      ctx.fillStyle=bodyColor; ctx.beginPath(); ctx.arc(x+s/2,y+s/2+2,s/2,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle='#ff5a3d'; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.moveTo(x+s/2,y-2); ctx.lineTo(x+s/2,y-s*0.3); ctx.stroke();
+      ctx.fillStyle='#ff5a3d'; ctx.beginPath(); ctx.arc(x+s/2,y-s*0.32,3,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='#fff';
+      ctx.beginPath(); ctx.arc(x+s*0.35,y+s*0.45,2.4,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(x+s*0.65,y+s*0.45,2.4,0,Math.PI*2); ctx.fill();
+      if(en.type==='speedy'){
+        ctx.strokeStyle='rgba(255,255,255,0.5)'; ctx.lineWidth=1.4;
+        ctx.beginPath(); ctx.moveTo(x-2,y+s*0.3); ctx.lineTo(x-8,y+s*0.3); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x-2,y+s*0.55); ctx.lineTo(x-6,y+s*0.55); ctx.stroke();
+      }
+    }
   });
   const fx=flagCol*tile-camX;
   if(fx>-tile && fx<W+tile){
@@ -569,7 +703,10 @@ function draw(){
   ctx.font='bold '+(H*0.04)+'px "Baloo 2", sans-serif'; ctx.textAlign='left'; ctx.textBaseline='alphabetic';
   ctx.strokeText('🪙 '+coinsCollected+'      🪙 '+score, 16, H*0.08);
   ctx.fillText('🪙 '+coinsCollected+'      🪙 '+score, 16, H*0.08);
-  ctx.textAlign='right';
+  ctx.font='bold '+(H*0.022)+'px "Nunito", sans-serif';
+  ctx.strokeText('Уровень '+currentLevel+' / '+TOTAL_LEVELS, 16, H*0.115);
+  ctx.fillText('Уровень '+currentLevel+' / '+TOTAL_LEVELS, 16, H*0.115);
+  ctx.font='bold '+(H*0.04)+'px "Baloo 2", sans-serif'; ctx.textAlign='right';
   ctx.strokeText('❤️ '+lives, W-16, H*0.08);
   ctx.fillText('❤️ '+lives, W-16, H*0.08);
 }
