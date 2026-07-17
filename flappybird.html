@@ -11,6 +11,7 @@
   :root{--ink:#1E4635;--ink-soft:#4C7767;--green:#35C57A;--green-dark:#1E9E5E;--card-bg:#FFFFFF;--yellow:#FFC94D;}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;}
   html,body{margin:0;padding:0;height:100%;width:100%;font-family:'Nunito',sans-serif;color:var(--ink);
+    touch-action:none;overscroll-behavior:none;
     background:#DFF7EA;overflow:hidden;}
   .wrap{position:fixed;inset:0;display:flex;flex-direction:column;}
   .board-holder{flex:1;position:relative;min-height:0;}
@@ -105,7 +106,11 @@
   </div>
 </div>
 <script>
-if(window.Telegram && window.Telegram.WebApp){window.Telegram.WebApp.ready();window.Telegram.WebApp.expand();}
+if(window.Telegram && window.Telegram.WebApp){
+  const tg=window.Telegram.WebApp;
+  tg.ready(); tg.expand();
+  if(typeof tg.disableVerticalSwipes==='function') tg.disableVerticalSwipes();
+}
 
 const canvas=document.getElementById('board');
 const ctx=canvas.getContext('2d');
