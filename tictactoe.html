@@ -156,6 +156,11 @@ let scores={X:0,O:0,D:0};
 // ---------- Онлайн-состояние ----------
 let onlineMode=false, roomCode=null, mySymbol=null, roomRef=null, opponentName='Соперник';
 
+// Firebase не умеет нормально хранить массивы с null (обрезает их) —
+// поэтому храним поле как строку из 9 символов: '_' = пусто, 'X' или 'O'
+function boardToString(arr){ return arr.map(v=>v||'_').join(''); }
+function stringToBoard(str){ return (str||'_________').split('').map(c=>c==='_'?null:c); }
+
 const wins=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
 
 function render(winLine){
@@ -259,7 +264,7 @@ function startOnlineListener(code){
   roomRef.on('value', snap=>{
     const data=snap.val();
     if(!data) return;
-    cells = data.cells || Array(9).fill(null);
+    cells = stringToBoard(data.board);
     turn = data.turn || 'X';
     over = data.status==='finished';
     scores = data.scores || {X:0,O:0,D:0};
@@ -282,7 +287,8 @@ function startOnlineListener(code){
     if(data.status==='finished' && data.winLine!==undefined){
       const winnerText = data.winner==='D' ? 'Ничья! 🤝' : ((data.winner==='X'?'Х':'О') + ' победил! 🎉');
       statusEl.textContent=winnerText;
-      render(data.winLine);
+      const lineArr = data.winLine ? String(data.winLine).split(',').map(Number) : null;
+      render(lineArr);
     } else {
       statusEl.textContent = onlineMode
         ? (turn===mySymbol ? 'Твой ход!' : `Ход соперника (${opponentName})`)
@@ -299,7 +305,7 @@ document.getElementById('createRoomBtn').onclick=()=>{
   const code=genRoomCode();
   mySymbol='X';
   const initial={
-    cells:Array(9).fill(null), turn:'X', status:'waiting',
+    board:'_________', turn:'X', status:'waiting',
     players:{ X:{id:ME.id, name:ME.name} },
     scores:{X:0,O:0,D:0}
   };
@@ -365,11 +371,11 @@ function onlineMove(i){
     if(newCells.every(c=>c)) return {winner:'D',line:null};
     return null;
   })();
-  const update={ cells:newCells, turn: mySymbol==='X'?'O':'X' };
+  const update={ board: boardToString(newCells), turn: mySymbol==='X'?'O':'X' };
   if(res){
     update.status='finished';
     update.winner=res.winner;
-    update.winLine=res.line || [];
+    update.winLine = res.line ? res.line.join(',') : '';
     const newScores=Object.assign({}, scores);
     if(res.winner==='D') newScores.D=(newScores.D||0)+1; else newScores[res.winner]=(newScores[res.winner]||0)+1;
     update.scores=newScores;
@@ -378,7 +384,7 @@ function onlineMove(i){
 }
 function onlineNewRound(){
   db.ref('rooms/'+roomCode).update({
-    cells:Array(9).fill(null), turn:'X', status:'playing', winner:null, winLine:null
+    board:'_________', turn:'X', status:'playing', winner:null, winLine:null
   });
 }
 
