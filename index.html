@@ -224,6 +224,35 @@
     opacity: 0.75;
     font-weight: 600;
   }
+
+  .beta-banner {
+    margin-top: 18px;
+    background: linear-gradient(135deg, #FFF3D9, #FFE9BF);
+    border: 2px dashed #E8A317;
+    border-radius: 18px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    text-align: left;
+    animation: card-in 0.55s cubic-bezier(0.2,0.9,0.3,1.2) forwards;
+    opacity: 0;
+    animation-delay: 0.4s;
+  }
+  .beta-banner .beta-emoji {
+    font-size: 22px;
+    line-height: 1;
+    flex: 0 0 auto;
+  }
+  .beta-banner .beta-text {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #7A5D06;
+    line-height: 1.45;
+  }
+  .beta-banner .beta-text b {
+    color: #B5680C;
+  }
 </style>
 </head>
 <body>
@@ -296,6 +325,14 @@
   </div>
 
   <p class="footer-note">Хорошего перерыва! 🌿</p>
+
+  <div class="beta-banner">
+    <span class="beta-emoji">🚧</span>
+    <p class="beta-text">
+      Привет! Все игры пока в <b>тестовом режиме</b> — что-то может барахлить или измениться.
+      Если заметишь баг или есть идея, что улучшить — просто напиши об этом лично создателю бота 🙂
+    </p>
+  </div>
 </div>
 
 <script>
