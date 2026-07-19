@@ -29,27 +29,47 @@
     50%{ box-shadow:0 6px 0 rgba(0,0,0,0.25),0 8px 14px -6px rgba(0,0,0,0.4), 0 0 20px rgba(53,197,122,0.85); }
   }
   h1{font-family:'Baloo 2',sans-serif;font-weight:800;font-size:20px;margin:0 0 6px;text-align:center;}
-  .status{font-weight:700;color:var(--ink-soft);font-size:13.5px;margin-bottom:8px;text-align:center;min-height:18px;}
+  .turn-banner{font-family:'Baloo 2',sans-serif;font-weight:800;font-size:16px;text-align:center;
+    padding:9px 18px;border-radius:16px;margin:6px 0 10px;min-width:200px;
+    background:#fff;box-shadow:0 6px 14px -6px rgba(14,42,61,0.35);transition:all 0.25s;}
+  .turn-banner.mine{background:linear-gradient(135deg,#FFD86B,#FFC130);color:#7A4B00;
+    box-shadow:0 6px 18px -4px rgba(255,180,20,0.6);animation:turn-pulse 1.4s ease-in-out infinite;}
+  .turn-banner.theirs{background:#E1EBF5;color:var(--navy-dark);}
+  @keyframes turn-pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.035);}}
+  .status{font-weight:700;color:var(--ink-soft);font-size:12.5px;margin-bottom:6px;text-align:center;min-height:16px;}
   .online-badge{display:inline-flex;align-items:center;gap:5px;background:#E3FAEC;color:var(--green-dark);
     font-weight:700;font-size:11px;padding:3px 10px;border-radius:14px;margin-bottom:6px;}
   .ships-left{display:flex;gap:6px;justify-content:center;margin-bottom:8px;flex-wrap:wrap;}
   .ship-chip{background:#fff;border-radius:10px;padding:3px 8px;font-size:11px;font-weight:700;color:var(--navy-dark);
     box-shadow:0 4px 8px -4px rgba(14,42,61,0.3);}
   .ship-chip.sunk{opacity:0.35;text-decoration:line-through;}
-  .board-section{width:100%;max-width:420px;display:flex;flex-direction:column;align-items:center;margin-bottom:10px;}
+  .board-section{width:100%;max-width:480px;display:flex;flex-direction:column;align-items:center;margin-bottom:8px;}
   .board-label{font-family:'Baloo 2',sans-serif;font-weight:700;font-size:13px;color:var(--ink-soft);margin-bottom:4px;}
-  .board{display:grid;border-radius:12px;overflow:hidden;box-shadow:0 10px 20px -8px rgba(14,42,61,0.35);background:#1B3F5C;}
+  .board{display:grid;border-radius:12px;overflow:hidden;box-shadow:0 10px 20px -8px rgba(14,42,61,0.35);background:#1B3F5C;position:relative;}
   .board.enemy{gap:2px;padding:2px;}
   .board.own{gap:1.5px;padding:1.5px;}
   .cell{background:#BFE0F0;display:flex;align-items:center;justify-content:center;position:relative;}
   .board.enemy .cell{cursor:pointer;}
-  .cell.ship{background:#6E93A8;}
-  .cell.hit{background:#E85E5E;}
-  .cell.hit::after{content:'✕';color:#fff;font-weight:800;font-size:70%;}
   .cell.miss{background:#DCEFFB;}
-  .cell.miss::after{content:'';width:28%;height:28%;border-radius:50%;background:#7FA9C2;}
-  .cell.sunk{background:#3D3D46;}
-  .cell.sunk::after{content:'☠';color:#fff;font-size:65%;}
+  .cell.miss::after{content:'';width:26%;height:26%;border-radius:50%;background:#7FA9C2;
+    animation:ripple 0.5s ease-out;}
+  @keyframes ripple{ from{ transform:scale(0.2); opacity:0.3; } to{ transform:scale(1); opacity:1; } }
+
+  .ship-hull{position:absolute;z-index:1;pointer-events:none;}
+  .ship-hull svg{display:block;filter:drop-shadow(0 2px 3px rgba(14,42,61,0.35));}
+
+  .explosion{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:5;}
+  .explosion .ring{position:absolute;border-radius:50%;border:3px solid #FF9138;
+    animation:boom-ring 0.55s ease-out forwards;}
+  .explosion .core{position:absolute;width:46%;height:46%;border-radius:50%;
+    background:radial-gradient(circle,#FFE38A 0%,#FF9138 45%,#E8471C 75%,transparent 100%);
+    animation:boom-core 0.5s ease-out forwards;}
+  @keyframes boom-ring{ from{ width:20%; height:20%; opacity:1; } to{ width:120%; height:120%; opacity:0; } }
+  @keyframes boom-core{ 0%{ transform:scale(0.3); opacity:1; } 60%{ transform:scale(1.15); opacity:1; } 100%{ transform:scale(1); opacity:0; } }
+
+  .cell.hit-cell{background:#E85E5E;}
+  .cell.sunk-cell{background:#3D3D46;}
+  .cell.sunk-cell::after{content:'☠';color:#fff;font-size:65%;z-index:6;}
   .btn-row{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:6px;margin-bottom:10px;}
   .btn-main{background:linear-gradient(135deg,var(--navy),#5B8EB5);border:none;color:#fff;font-family:'Baloo 2',sans-serif;
     font-weight:700;font-size:14px;padding:10px 18px;border-radius:14px;box-shadow:0 6px 0 var(--navy-dark);}
@@ -83,13 +103,15 @@
 <div class="wrap">
   <h1>🚢 Морской бой</h1>
   <div id="onlineBadge"></div>
-  <div class="status" id="status">Расставь флот и нажми "Готов"</div>
+  <div class="status" id="statusSmall">Расставь флот и нажми "Готов"</div>
   <div class="ships-left" id="shipsLeft"></div>
 
   <div class="board-section">
     <span class="board-label" id="enemyLabel">Поле соперника</span>
     <div class="board enemy" id="enemyBoard"></div>
   </div>
+
+  <div class="turn-banner" id="turnBanner">Расставь флот ⚓</div>
 
   <div class="board-section">
     <span class="board-label">Твой флот</span>
@@ -217,7 +239,20 @@ let botHuntQueue=[];
 
 const enemyBoardEl=document.getElementById('enemyBoard');
 const ownBoardEl=document.getElementById('ownBoard');
-const statusEl=document.getElementById('status');
+const statusSmallEl=document.getElementById('statusSmall');
+const turnBannerEl=document.getElementById('turnBanner');
+function setStatus(msg, bannerMsg, mode){
+  // mode: 'mine' | 'theirs' | 'neutral'
+  statusSmallEl.textContent = msg || '';
+  if(bannerMsg!==undefined){
+    turnBannerEl.textContent = bannerMsg;
+    turnBannerEl.classList.remove('mine','theirs');
+    if(mode==='mine') turnBannerEl.classList.add('mine');
+    else if(mode==='theirs') turnBannerEl.classList.add('theirs');
+  }
+}
+// statusEl оставлен для обратной совместимости со старым кодом
+const statusEl={ set textContent(v){ setStatus(v); } };
 
 function shipSegmentsSunk(boardStr, shotsStr){
   const visited=new Set(), sunk=new Set();
@@ -250,24 +285,146 @@ function renderShipsLeft(shotsAgainstMe, myOwnBoard){
     `<span class="ship-chip">Твой флот: ${TOTAL_SHIP_CELLS-Array.from(sunkSet).length}/${TOTAL_SHIP_CELLS} клеток</span>`;
 }
 
+function getShips(boardStr){
+  const visited=new Set(), ships=[];
+  for(let i=0;i<boardStr.length;i++){
+    if(boardStr[i]!=='S' || visited.has(i)) continue;
+    const r=Math.floor(i/SIZE), c=i%SIZE;
+    let cells=[i]; visited.add(i);
+    for(const [dr,dc] of [[0,1],[1,0]]){
+      let rr=r+dr, cc=c+dc;
+      while(rr>=0&&rr<SIZE&&cc>=0&&cc<SIZE&&boardStr[idx(rr,cc)]==='S'){
+        const j=idx(rr,cc);
+        if(!visited.has(j)){ cells.push(j); visited.add(j); }
+        rr+=dr; cc+=dc;
+      }
+    }
+    cells.sort((a,b)=>a-b);
+    const horiz = cells.length>1 ? (Math.floor(cells[1]/SIZE)===Math.floor(cells[0]/SIZE)) : true;
+    ships.push({ cells, length:cells.length, horiz, r0:Math.floor(cells[0]/SIZE), c0:cells[0]%SIZE });
+  }
+  return ships;
+}
+function shipSvgMarkup(length, cellSize, isSunk){
+  const W = length*cellSize, H = cellSize;
+  const hullTop=H*0.22, hullBot=H*0.86, midY=H/2;
+  const bowX = W-H*0.12;
+  const hull = isSunk ? '#4a4a52' : '#B9803F';
+  const hullDark = isSunk ? '#2c2c32' : '#8A5E28';
+  const deck = isSunk ? '#6b6b74' : '#E0B876';
+  const cabin = isSunk ? '#38383e' : '#7A4A24';
+  const sail = isSunk ? '#8a8a92' : '#FFF8E8';
+  const sailLine = isSunk ? '#55555e' : '#D8C9A0';
+  const flag = isSunk ? '#77777f' : '#E85E5E';
+
+  // корпус: нос заострён справа, корма скруглена слева
+  const hullPath = `M ${H*0.16},${hullTop}
+    L ${bowX-H*0.35},${hullTop}
+    Q ${bowX},${midY} ${bowX-H*0.35},${hullBot}
+    L ${H*0.16},${hullBot}
+    Q 0,${midY} ${H*0.16},${hullTop} Z`;
+  const deckPath = `M ${H*0.24},${hullTop+H*0.06}
+    L ${bowX-H*0.4},${hullTop+H*0.06}
+    L ${bowX-H*0.55},${midY}
+    L ${H*0.24},${midY} Z`;
+
+  // иллюминаторы вдоль борта (для кораблей от 2 клеток)
+  let portholes='';
+  const numPorts = Math.max(1, length);
+  for(let i=0;i<numPorts;i++){
+    const cx = H*0.55 + i*(cellSize) - (length>1? cellSize*0.15 : 0);
+    if(cx > bowX - H*0.5) continue;
+    portholes += `<circle cx="${cx}" cy="${hullBot-H*0.16}" r="${H*0.07}" fill="${isSunk?'#20202699':'#5A3A18'}" opacity="0.8"/>`;
+  }
+
+  // мачта с флажком-парусом — по одной на каждые ~1.4 клетки
+  let masts='';
+  const mastCount = Math.max(1, Math.round(length/1.4));
+  for(let i=0;i<mastCount;i++){
+    const cx = H*0.7 + i*((W-H*1.4)/Math.max(1,mastCount-1||1));
+    const mx = mastCount===1 ? W*0.42 : cx;
+    masts += `
+      <line x1="${mx}" y1="${hullTop}" x2="${mx}" y2="${hullTop-H*0.5}" stroke="${isSunk?'#55555e':'#6B4A2A'}" stroke-width="${Math.max(1,H*0.045)}"/>
+      <path d="M ${mx},${hullTop-H*0.48} L ${mx+H*0.32},${hullTop-H*0.22} L ${mx},${hullTop-H*0.08} Z" fill="${sail}" stroke="${sailLine}" stroke-width="1"/>
+    `;
+  }
+
+  // рубка на корме
+  const cabinW=H*0.34, cabinH=H*0.22;
+  const cabinX=H*0.24, cabinY=hullTop-cabinH*0.55;
+
+  // флажок на носу
+  const flagX=bowX-H*0.05;
+
+  return `
+  <svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
+    <path d="${hullPath}" fill="${hull}" stroke="${hullDark}" stroke-width="${Math.max(1,H*0.05)}"/>
+    <path d="${deckPath}" fill="${deck}" opacity="0.85"/>
+    ${portholes}
+    <rect x="${cabinX}" y="${cabinY}" width="${cabinW}" height="${cabinH}" rx="${H*0.05}" fill="${cabin}"/>
+    ${masts}
+    <line x1="${flagX}" y1="${hullTop}" x2="${flagX}" y2="${hullTop-H*0.4}" stroke="${isSunk?'#55555e':'#6B4A2A'}" stroke-width="${Math.max(1,H*0.04)}"/>
+    <path d="M ${flagX},${hullTop-H*0.4} L ${flagX+H*0.22},${hullTop-H*0.3} L ${flagX},${hullTop-H*0.2} Z" fill="${flag}"/>
+  </svg>`;
+}
+function drawHulls(boardEl, ships, sunkSet, cellSize, gapPx, padPx){
+  ships.forEach(ship=>{
+    const isSunk = ship.cells.every(c=>sunkSet.has(c));
+    const hull=document.createElement('div');
+    hull.className='ship-hull'+(ship.horiz?'':' vertical');
+    const x = padPx + ship.c0*(cellSize+gapPx);
+    const y = padPx + ship.r0*(cellSize+gapPx);
+    const wHoriz = ship.length*cellSize+(ship.length-1)*gapPx; // "длинная" сторона
+    if(ship.horiz){
+      hull.style.left=x+'px'; hull.style.top=y+'px';
+      hull.style.width=wHoriz+'px'; hull.style.height=cellSize+'px';
+      hull.innerHTML=shipSvgMarkup(ship.length, cellSize, isSunk);
+    } else {
+      // рисуем как горизонтальный (нос справа), затем поворачиваем на 90°
+      hull.style.left=x+'px'; hull.style.top=y+'px';
+      hull.style.width=cellSize+'px'; hull.style.height=wHoriz+'px';
+      hull.style.overflow='visible';
+      const inner=document.createElement('div');
+      inner.style.width=wHoriz+'px'; inner.style.height=cellSize+'px';
+      inner.style.transform=`translate(${(cellSize-wHoriz)/2}px, ${(wHoriz-cellSize)/2}px) rotate(90deg)`;
+      inner.style.transformOrigin='center';
+      inner.innerHTML=shipSvgMarkup(ship.length, cellSize, isSunk);
+      hull.appendChild(inner);
+    }
+    boardEl.appendChild(hull);
+  });
+}
+
+let prevOwnShots=null, prevEnemyShots=null;
+
 function renderOwnBoard(){
   ownBoardEl.innerHTML='';
-  const cellSize = Math.min(30, Math.floor((Math.min(window.innerWidth-40,380))/SIZE)-2);
+  const cellSize = Math.min(38, Math.floor((Math.min(window.innerWidth-30,440))/SIZE)-2);
+  const gapPx=1.5, padPx=1.5;
   ownBoardEl.style.gridTemplateColumns=`repeat(${SIZE}, ${cellSize}px)`;
   const sunkSet = phase!=='placement' ? shipSegmentsSunk(myBoard, enemyShots) : new Set();
   for(let i=0;i<SIZE*SIZE;i++){
     const d=document.createElement('div');
     d.className='cell';
     d.style.width=cellSize+'px'; d.style.height=cellSize+'px';
-    if(myBoard[i]==='S') d.classList.add('ship');
-    if(enemyShots[i]==='H') d.classList.add(sunkSet.has(i)?'sunk':'hit');
+    if(enemyShots[i]==='H') d.classList.add(sunkSet.has(i)?'sunk-cell':'hit-cell');
     if(enemyShots[i]==='M') d.classList.add('miss');
+    if(enemyShots[i]==='H' && (!prevOwnShots || prevOwnShots[i]!=='H')){
+      const ex=document.createElement('div');
+      ex.className='explosion';
+      ex.innerHTML='<div class="ring"></div><div class="core"></div>';
+      d.appendChild(ex);
+    }
     ownBoardEl.appendChild(d);
   }
+  // корпуса своих кораблей всегда видны
+  drawHulls(ownBoardEl, getShips(myBoard), sunkSet, cellSize, gapPx, padPx);
+  prevOwnShots=enemyShots;
 }
 function renderEnemyBoard(){
   enemyBoardEl.innerHTML='';
-  const cellSize = Math.min(38, Math.floor((Math.min(window.innerWidth-40,420))/SIZE)-2);
+  const cellSize = Math.min(46, Math.floor((Math.min(window.innerWidth-30,480))/SIZE)-2);
+  const gapPx=2, padPx=2;
   enemyBoardEl.style.gridTemplateColumns=`repeat(${SIZE}, ${cellSize}px)`;
   const enemyBoardForSunk = onlineMode ? (window.__enemyBoardCache||emptyBoard()) : (vsBot ? botBoard : emptyBoard());
   const sunkSet = phase==='battle'||phase==='finished' ? shipSegmentsSunk(enemyBoardForSunk, myShots) : new Set();
@@ -275,13 +432,26 @@ function renderEnemyBoard(){
     const d=document.createElement('div');
     d.className='cell';
     d.style.width=cellSize+'px'; d.style.height=cellSize+'px';
-    if(myShots[i]==='H') d.classList.add(sunkSet.has(i)?'sunk':'hit');
+    if(myShots[i]==='H') d.classList.add(sunkSet.has(i)?'sunk-cell':'hit-cell');
     if(myShots[i]==='M') d.classList.add('miss');
+    if(myShots[i]==='H' && (!prevEnemyShots || prevEnemyShots[i]!=='H')){
+      const ex=document.createElement('div');
+      ex.className='explosion';
+      ex.innerHTML='<div class="ring"></div><div class="core"></div>';
+      d.appendChild(ex);
+    }
     if(phase==='battle' && myTurn && myShots[i]==='.'){
       d.onclick=()=>fireAtEnemy(i);
     }
     enemyBoardEl.appendChild(d);
   }
+  // на поле соперника видны только потопленные корабли (туман войны)
+  if(sunkSet.size){
+    const allShips=getShips(enemyBoardForSunk);
+    const sunkShips=allShips.filter(s=>s.cells.every(c=>sunkSet.has(c)));
+    drawHulls(enemyBoardEl, sunkShips, sunkSet, cellSize, gapPx, padPx);
+  }
+  prevEnemyShots=myShots;
 }
 function renderAll(){
   renderOwnBoard();
@@ -310,7 +480,7 @@ function resetToPlacement(){
   document.getElementById('gameControls').style.display='none';
   document.getElementById('onlineBadge').innerHTML='';
   document.getElementById('enemyLabel').textContent='Поле соперника';
-  statusEl.textContent='Расставь флот и нажми "Готов"';
+  setStatus('Расставь флот и нажми "Готов"', 'Расставь флот ⚓', 'neutral');
   if(roomRef){ roomRef.off(); roomRef=null; }
   roomCode=null; mySymbol=null;
   renderAll();
@@ -324,7 +494,7 @@ function startBotGame(){
   document.getElementById('placementControls').style.display='none';
   document.getElementById('gameControls').style.display='flex';
   document.getElementById('enemyLabel').textContent='Поле бота 🤖';
-  statusEl.textContent='Твой ход!';
+  setStatus('', '🎯 Твой ход!', 'mine');
   renderAll();
 }
 function fireAtEnemy(i){
@@ -338,11 +508,11 @@ function fireAtBot(i){
   renderAll();
   if(hit){
     const sunkSet=shipSegmentsSunk(botBoard, myShots);
-    if(sunkSet.has(i)) toastStatus('💥 Корабль потоплен!');
-    else toastStatus('🎯 Попадание! Ходи ещё');
+    if(sunkSet.has(i)) setStatus('💥 Корабль потоплен!', '🎯 Твой ход!', 'mine');
+    else setStatus('🎯 Попадание! Ходи ещё', '🎯 Твой ход!', 'mine');
     if(countHits(botBoard,myShots)>=TOTAL_SHIP_CELLS){ endGame(true); return; }
   } else {
-    toastStatus('🌊 Мимо! Ход бота...');
+    setStatus('🌊 Мимо!', '🤖 Ход бота...', 'theirs');
     myTurn=false;
     setTimeout(botTurn, 700);
   }
@@ -370,10 +540,10 @@ function botTurn(){
   renderAll();
   if(countHits(myBoard,enemyShots)>=TOTAL_SHIP_CELLS){ endGame(false); return; }
   if(hit){
-    toastStatus('🤖 Бот попал! Ходит ещё...');
+    setStatus('🤖 Бот попал!', '🤖 Ходит ещё...', 'theirs');
     setTimeout(botTurn, 700);
   } else {
-    toastStatus('🤖 Бот промазал. Твой ход!');
+    setStatus('🤖 Бот промазал.', '🎯 Твой ход!', 'mine');
     myTurn=true;
     renderAll();
   }
@@ -384,7 +554,7 @@ function endGame(won){
   document.getElementById('resultText').textContent = won ? 'Ты потопил весь флот соперника!' : 'Твой флот пошёл ко дну...';
   document.getElementById('resultOverlay').classList.add('show');
 }
-function toastStatus(msg){ statusEl.textContent=msg; }
+function toastStatus(msg){ setStatus(msg); }
 
 document.getElementById('rematchBtn').onclick=()=>{
   document.getElementById('resultOverlay').classList.remove('show');
@@ -494,14 +664,14 @@ function startOnlineListener(code){
 
       if(data.status==='finished'){
         const iWon = data.winner===mySymbol;
-        statusEl.textContent = iWon ? 'Победа! 🏆' : 'Поражение 💥';
+        setStatus('', iWon ? '🏆 Победа!' : '💥 Поражение', iWon?'mine':'theirs');
         if(!document.getElementById('resultOverlay').classList.contains('show')){
           document.getElementById('resultTitle').textContent = iWon ? 'Победа! 🏆' : 'Поражение 💥';
           document.getElementById('resultText').textContent = iWon ? 'Ты потопил весь флот соперника!' : 'Твой флот пошёл ко дну...';
           document.getElementById('resultOverlay').classList.add('show');
         }
       } else {
-        statusEl.textContent = myTurn ? 'Твой ход!' : `Ход соперника (${opponentName})`;
+        setStatus('', myTurn ? '🎯 Твой ход!' : `Ход соперника (${opponentName})`, myTurn?'mine':'theirs');
       }
     }
   });
