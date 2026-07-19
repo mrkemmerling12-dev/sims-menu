@@ -141,6 +141,7 @@
   .card.c-pink:hover   { border-color: var(--sim-pink); }
   .card.c-orange:hover { border-color: var(--sim-yellow); }
   .card.c-teal:hover   { border-color: #2FAE9E; }
+  .card.c-navy:hover   { border-color: #2C5F8A; }
 
   .icon-badge {
     flex: 0 0 auto;
@@ -170,6 +171,7 @@
   .c-pink   .icon-badge { background: linear-gradient(135deg, #FCDCE7, #F5AFC6); }
   .c-orange .icon-badge { background: linear-gradient(135deg, #FFE9BF, #FFC94D); }
   .c-teal   .icon-badge { background: linear-gradient(135deg, #BFF0EA, #2FAE9E); }
+  .c-navy   .icon-badge { background: linear-gradient(135deg, #BFD6EA, #2C5F8A); }
 
   .card-text { flex: 1 1 auto; min-width: 0; }
   .card-title {
@@ -194,6 +196,7 @@
   .c-pink   .card-tag { background: #FDEAF0; color: #C2507A; }
   .c-orange .card-tag { background: #FFF3D9; color: #B5680C; }
   .c-teal   .card-tag { background: #DFF7F3; color: #1E7A6E; }
+  .c-navy   .card-tag { background: #E1EBF5; color: #2C5F8A; }
 
   .card-desc {
     font-size: 12.5px;
@@ -303,22 +306,15 @@
       <div class="arrow">▶</div>
     </a>
 
-    <a class="card c-orange" data-url="https://mrkemmerling12-dev.github.io/sims-menu/mario.html">
-      <div class="icon-badge">🏃</div>
-      <div class="card-text">
-        <span class="card-tag">Платформер</span>
-        <p class="card-title">Ретро-Бегун</p>
-        <p class="card-desc">Беги, прыгай, собирай монеты и обходи бомбы до самого флага!</p>
-      </div>
-      <div class="arrow">▶</div>
-    </a>
+    <!-- Временно скрыто из меню (Ретро-Бегун и 2048) — файлы остаются на GitHub,
+         вернём в меню, когда доделаем задуманные улучшения. -->
 
-    <a class="card c-teal" data-url="https://mrkemmerling12-dev.github.io/sims-menu/g2048.html">
-      <div class="icon-badge">🔢</div>
+    <a class="card c-navy" data-url="https://mrkemmerling12-dev.github.io/sims-menu/battleship.html">
+      <div class="icon-badge">🚢</div>
       <div class="card-text">
-        <span class="card-tag">Головоломка</span>
-        <p class="card-title">2048</p>
-        <p class="card-desc">Свайпай и объединяй плитки, пока не дойдёшь до заветной 2048!</p>
+        <span class="card-tag">Онлайн вдвоём</span>
+        <p class="card-title">Морской бой</p>
+        <p class="card-desc">Расставь флот и потопи корабли соперника — в реальном времени с другом.</p>
       </div>
       <div class="arrow">▶</div>
     </a>
