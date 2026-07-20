@@ -55,8 +55,12 @@
     animation:ripple 0.5s ease-out;}
   @keyframes ripple{ from{ transform:scale(0.2); opacity:0.3; } to{ transform:scale(1); opacity:1; } }
 
-  .ship-hull{position:absolute;z-index:1;pointer-events:none;}
-  .ship-hull svg{display:block;filter:drop-shadow(0 2px 3px rgba(14,42,61,0.35));}
+  .ship-hull{position:absolute;z-index:1;pointer-events:none;animation:ship-bob 3.2s ease-in-out infinite;}
+  .ship-hull svg{display:block;filter:drop-shadow(0 3px 3px rgba(14,42,61,0.4));}
+  @keyframes ship-bob{
+    0%,100%{ transform:translateY(0) rotate(0deg); }
+    50%{ transform:translateY(-2.5px) rotate(-1.2deg); }
+  }
 
   .explosion{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:5;}
   .explosion .ring{position:absolute;border-radius:50%;border:3px solid #FF9138;
@@ -305,66 +309,98 @@ function getShips(boardStr){
   }
   return ships;
 }
-function shipSvgMarkup(length, cellSize, isSunk){
+function shipSvgMarkup(length, cellSize, isSunk, allowMastOverflow){
   const W = length*cellSize, H = cellSize;
-  const hullTop=H*0.22, hullBot=H*0.86, midY=H/2;
-  const bowX = W-H*0.12;
-  const hull = isSunk ? '#4a4a52' : '#B9803F';
-  const hullDark = isSunk ? '#2c2c32' : '#8A5E28';
-  const deck = isSunk ? '#6b6b74' : '#E0B876';
-  const cabin = isSunk ? '#38383e' : '#7A4A24';
-  const sail = isSunk ? '#8a8a92' : '#FFF8E8';
-  const sailLine = isSunk ? '#55555e' : '#D8C9A0';
-  const flag = isSunk ? '#77777f' : '#E85E5E';
+  const bowY=H*0.5;
 
-  // корпус: нос заострён справа, корма скруглена слева
-  const hullPath = `M ${H*0.16},${hullTop}
-    L ${bowX-H*0.35},${hullTop}
-    Q ${bowX},${midY} ${bowX-H*0.35},${hullBot}
-    L ${H*0.16},${hullBot}
-    Q 0,${midY} ${H*0.16},${hullTop} Z`;
-  const deckPath = `M ${H*0.24},${hullTop+H*0.06}
-    L ${bowX-H*0.4},${hullTop+H*0.06}
-    L ${bowX-H*0.55},${midY}
-    L ${H*0.24},${midY} Z`;
+  const hullMid = isSunk ? '#3f3f47' : '#A5692B';
+  const hullDark = isSunk ? '#232328' : '#6E4419';
+  const deckCol = isSunk ? '#77777f' : '#E8C68A';
+  const plankCol = isSunk ? '#4a4a52' : '#8A5A26';
+  const cabinCol = isSunk ? '#2c2c31' : '#5C3A1C';
+  const cabinRoof = isSunk ? '#1c1c1f' : '#3D2510';
+  const sailCol = isSunk ? '#9a9aa2' : '#FFFBF2';
+  const sailShade = isSunk ? '#7a7a82' : '#EDE0C4';
+  const mastCol = isSunk ? '#3a3a40' : '#4A2E14';
+  const flagCol = isSunk ? '#5a5a62' : '#E14B4B';
+  const portholeCol = isSunk ? 'rgba(20,20,24,0.6)' : '#3D2510';
+  const waterlineCol = isSunk ? '#26262b' : '#7A4E22';
 
-  // иллюминаторы вдоль борта (для кораблей от 2 клеток)
+  const hullPath = `
+    M 0,${H*0.32}
+    C ${W*0.04},${H*0.14} ${W*0.14},${H*0.08} ${W*0.24},${H*0.08}
+    L ${W*0.74},${H*0.1}
+    C ${W*0.86},${H*0.12} ${W*0.95},${H*0.28} ${W},${bowY}
+    C ${W*0.95},${H*0.72} ${W*0.86},${H*0.88} ${W*0.74},${H*0.9}
+    L ${W*0.24},${H*0.92}
+    C ${W*0.14},${H*0.92} ${W*0.04},${H*0.86} 0,${H*0.68}
+    Z`;
+  const waterlinePath = `
+    M 0,${H*0.68}
+    C ${W*0.04},${H*0.86} ${W*0.14},${H*0.92} ${W*0.24},${H*0.92}
+    L ${W*0.74},${H*0.9}
+    C ${W*0.86},${H*0.88} ${W*0.95},${H*0.72} ${W},${bowY}
+    L ${W},${bowY+H*0.06}
+    C ${W*0.95},${H*0.76} ${W*0.86},${H*0.92} ${W*0.74},${H*0.94}
+    L ${W*0.24},${H*0.96}
+    C ${W*0.12},${H*0.96} ${W*0.02},${H*0.9} 0,${H*0.72}
+    Z`;
+  const deckPath = `
+    M ${W*0.06},${H*0.34}
+    C ${W*0.1},${H*0.22} ${W*0.18},${H*0.18} ${W*0.26},${H*0.18}
+    L ${W*0.72},${H*0.2}
+    C ${W*0.82},${H*0.22} ${W*0.9},${H*0.34} ${W*0.94},${bowY}
+    C ${W*0.9},${H*0.66} ${W*0.82},${H*0.78} ${W*0.72},${H*0.8}
+    L ${W*0.26},${H*0.82}
+    C ${W*0.18},${H*0.82} ${W*0.1},${H*0.78} ${W*0.06},${H*0.66}
+    Z`;
+
+  let planks='';
+  for(let i=1;i<3;i++){
+    const py = H*0.32 + i*(H*0.36/3);
+    planks += `<line x1="${W*0.1}" y1="${py}" x2="${W*0.86}" y2="${py}" stroke="${plankCol}" stroke-width="${Math.max(0.6,H*0.02)}" opacity="0.35"/>`;
+  }
   let portholes='';
-  const numPorts = Math.max(1, length);
-  for(let i=0;i<numPorts;i++){
-    const cx = H*0.55 + i*(cellSize) - (length>1? cellSize*0.15 : 0);
-    if(cx > bowX - H*0.5) continue;
-    portholes += `<circle cx="${cx}" cy="${hullBot-H*0.16}" r="${H*0.07}" fill="${isSunk?'#20202699':'#5A3A18'}" opacity="0.8"/>`;
+  if(length>=3){
+    for(let i=0;i<length;i++){
+      const cx = W*0.16 + i*((W*0.62)/(length-1||1));
+      portholes += `<circle cx="${cx}" cy="${H*0.55}" r="${H*0.055}" fill="${portholeCol}"/>`;
+    }
   }
+  const cabinW=H*0.4, cabinH=H*0.3, cabinX=W*0.14, cabinY=H*0.5-cabinH/2;
 
-  // мачта с флажком-парусом — по одной на каждые ~1.4 клетки
-  let masts='';
-  const mastCount = Math.max(1, Math.round(length/1.4));
-  for(let i=0;i<mastCount;i++){
-    const cx = H*0.7 + i*((W-H*1.4)/Math.max(1,mastCount-1||1));
-    const mx = mastCount===1 ? W*0.42 : cx;
-    masts += `
-      <line x1="${mx}" y1="${hullTop}" x2="${mx}" y2="${hullTop-H*0.5}" stroke="${isSunk?'#55555e':'#6B4A2A'}" stroke-width="${Math.max(1,H*0.045)}"/>
-      <path d="M ${mx},${hullTop-H*0.48} L ${mx+H*0.32},${hullTop-H*0.22} L ${mx},${hullTop-H*0.08} Z" fill="${sail}" stroke="${sailLine}" stroke-width="1"/>
-    `;
-  }
+  // мачта: у горизонтальных кораблей — высокая, торчит над клеткой; у вертикальных (перед поворотом) — компактная, помещается внутри
+  const mastX = W*0.46;
+  const mastTopY = allowMastOverflow ? -H*0.62 : H*0.05;
+  const sailScale = allowMastOverflow ? 1 : 0.5;
+  const sailPath = `M ${mastX},${mastTopY+H*0.08*sailScale}
+    C ${mastX+W*0.18*sailScale},${mastTopY+H*0.18*sailScale} ${mastX+W*0.2*sailScale},${mastTopY+H*0.42*sailScale} ${mastX+W*0.02*sailScale},${mastTopY+H*0.48*sailScale}
+    L ${mastX},${mastTopY+H*0.4*sailScale} Z`;
+  const flagPath = `M ${mastX},${mastTopY} L ${mastX+H*0.24},${mastTopY+H*0.08} L ${mastX},${mastTopY+H*0.16} Z`;
 
-  // рубка на корме
-  const cabinW=H*0.34, cabinH=H*0.22;
-  const cabinX=H*0.24, cabinY=hullTop-cabinH*0.55;
+  const bowFlagX = W-H*0.08;
+  const bowFlagTop = allowMastOverflow ? H*0.02 : H*0.18;
 
-  // флажок на носу
-  const flagX=bowX-H*0.05;
+  const svgTop = allowMastOverflow ? mastTopY-H*0.1 : 0;
+  const svgH = H - svgTop;
 
   return `
-  <svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
-    <path d="${hullPath}" fill="${hull}" stroke="${hullDark}" stroke-width="${Math.max(1,H*0.05)}"/>
-    <path d="${deckPath}" fill="${deck}" opacity="0.85"/>
+  <svg viewBox="0 ${svgTop} ${W} ${svgH}" width="${W}" height="${svgH}"
+       style="position:absolute;left:0;bottom:0;overflow:visible;" xmlns="http://www.w3.org/2000/svg">
+    <ellipse cx="${W*0.46}" cy="${H*1.0}" rx="${W*0.42}" ry="${H*0.09}" fill="rgba(14,42,61,0.16)"/>
+    <path d="${hullPath}" fill="${hullMid}" stroke="${hullDark}" stroke-width="${Math.max(1,H*0.045)}"/>
+    <path d="${waterlinePath}" fill="${waterlineCol}"/>
+    <path d="${deckPath}" fill="${deckCol}"/>
+    ${planks}
     ${portholes}
-    <rect x="${cabinX}" y="${cabinY}" width="${cabinW}" height="${cabinH}" rx="${H*0.05}" fill="${cabin}"/>
-    ${masts}
-    <line x1="${flagX}" y1="${hullTop}" x2="${flagX}" y2="${hullTop-H*0.4}" stroke="${isSunk?'#55555e':'#6B4A2A'}" stroke-width="${Math.max(1,H*0.04)}"/>
-    <path d="M ${flagX},${hullTop-H*0.4} L ${flagX+H*0.22},${hullTop-H*0.3} L ${flagX},${hullTop-H*0.2} Z" fill="${flag}"/>
+    <rect x="${cabinX}" y="${cabinY}" width="${cabinW}" height="${cabinH}" rx="${H*0.06}" fill="${cabinCol}"/>
+    <rect x="${cabinX-H*0.02}" y="${cabinY-H*0.06}" width="${cabinW+H*0.04}" height="${H*0.09}" rx="${H*0.04}" fill="${cabinRoof}"/>
+    <line x1="${mastX}" y1="${H*0.5}" x2="${mastX}" y2="${mastTopY}" stroke="${mastCol}" stroke-width="${Math.max(1,H*0.045)}" stroke-linecap="round"/>
+    <path d="${sailPath}" fill="${sailCol}" stroke="${sailShade}" stroke-width="1"/>
+    <path d="${flagPath}" fill="${flagCol}"/>
+    <line x1="${bowFlagX}" y1="${bowY}" x2="${bowFlagX}" y2="${bowFlagTop}" stroke="${mastCol}" stroke-width="${Math.max(1,H*0.035)}" stroke-linecap="round"/>
+    <path d="M ${bowFlagX},${bowFlagTop} L ${bowFlagX+H*0.2},${bowFlagTop+H*0.08} L ${bowFlagX},${bowFlagTop+H*0.16} Z" fill="${flagCol}"/>
+    <ellipse cx="${W*0.4}" cy="${H*0.35}" rx="${W*0.18}" ry="${H*0.08}" fill="rgba(255,255,255,0.25)"/>
   </svg>`;
 }
 function drawHulls(boardEl, ships, sunkSet, cellSize, gapPx, padPx){
@@ -372,23 +408,27 @@ function drawHulls(boardEl, ships, sunkSet, cellSize, gapPx, padPx){
     const isSunk = ship.cells.every(c=>sunkSet.has(c));
     const hull=document.createElement('div');
     hull.className='ship-hull'+(ship.horiz?'':' vertical');
+    hull.style.animationDelay=(Math.random()*2).toFixed(2)+'s';
     const x = padPx + ship.c0*(cellSize+gapPx);
     const y = padPx + ship.r0*(cellSize+gapPx);
-    const wHoriz = ship.length*cellSize+(ship.length-1)*gapPx; // "длинная" сторона
+    const wHoriz = ship.length*cellSize+(ship.length-1)*gapPx;
     if(ship.horiz){
       hull.style.left=x+'px'; hull.style.top=y+'px';
       hull.style.width=wHoriz+'px'; hull.style.height=cellSize+'px';
-      hull.innerHTML=shipSvgMarkup(ship.length, cellSize, isSunk);
+      hull.style.overflow='visible';
+      hull.innerHTML=shipSvgMarkup(ship.length, cellSize, isSunk, true);
     } else {
-      // рисуем как горизонтальный (нос справа), затем поворачиваем на 90°
+      // рисуем компактный вариант (мачта внутри клетки) и поворачиваем на 90° — так позиционирование остаётся точным
       hull.style.left=x+'px'; hull.style.top=y+'px';
       hull.style.width=cellSize+'px'; hull.style.height=wHoriz+'px';
-      hull.style.overflow='visible';
       const inner=document.createElement('div');
+      inner.style.position='absolute';
       inner.style.width=wHoriz+'px'; inner.style.height=cellSize+'px';
-      inner.style.transform=`translate(${(cellSize-wHoriz)/2}px, ${(wHoriz-cellSize)/2}px) rotate(90deg)`;
+      inner.style.left=((cellSize-wHoriz)/2)+'px';
+      inner.style.top=((wHoriz-cellSize)/2)+'px';
+      inner.style.transform='rotate(90deg)';
       inner.style.transformOrigin='center';
-      inner.innerHTML=shipSvgMarkup(ship.length, cellSize, isSunk);
+      inner.innerHTML=shipSvgMarkup(ship.length, cellSize, isSunk, false);
       hull.appendChild(inner);
     }
     boardEl.appendChild(hull);
