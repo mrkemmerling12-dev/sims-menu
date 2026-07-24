@@ -39,11 +39,14 @@
   .status{font-weight:700;color:var(--ink-soft);font-size:12.5px;margin-bottom:6px;text-align:center;min-height:16px;}
   .online-badge{display:inline-flex;align-items:center;gap:5px;background:#E3FAEC;color:var(--green-dark);
     font-weight:700;font-size:11px;padding:3px 10px;border-radius:14px;margin-bottom:6px;}
-  .ships-left{display:flex;gap:6px;justify-content:center;margin-bottom:8px;flex-wrap:wrap;}
+  .ships-left{display:flex;flex-direction:column;gap:4px;align-items:center;margin-bottom:8px;}
+  .fleet-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:center;}
+  .fleet-label{font-size:11px;font-weight:700;color:var(--ink-soft);min-width:76px;text-align:right;}
+  .fleet-chips{display:flex;gap:5px;flex-wrap:wrap;}
   .ship-chip{background:#fff;border-radius:10px;padding:3px 8px;font-size:11px;font-weight:700;color:var(--navy-dark);
     box-shadow:0 4px 8px -4px rgba(14,42,61,0.3);}
   .ship-chip.sunk{opacity:0.35;text-decoration:line-through;}
-  .board-section{width:100%;max-width:480px;display:flex;flex-direction:column;align-items:center;margin-bottom:8px;}
+  .board-section{width:100%;max-width:500px;display:flex;flex-direction:column;align-items:center;margin-bottom:8px;}
   .board-label{font-family:'Baloo 2',sans-serif;font-weight:700;font-size:13px;color:var(--ink-soft);margin-bottom:4px;}
   .board{display:grid;border-radius:12px;overflow:hidden;box-shadow:0 10px 20px -8px rgba(14,42,61,0.35);background:#1B3F5C;position:relative;}
   .board.enemy{gap:2px;padding:2px;}
@@ -107,6 +110,7 @@
 <div class="wrap">
   <h1>🚢 Морской бой</h1>
   <div id="onlineBadge"></div>
+  <div class="status" id="statsDisplay" style="margin-bottom:4px;"></div>
   <div class="status" id="statusSmall">Расставь флот и нажми "Готов"</div>
   <div class="ships-left" id="shipsLeft"></div>
 
@@ -116,15 +120,23 @@
   </div>
 
   <div class="turn-banner" id="turnBanner">Расставь флот ⚓</div>
+  <div id="turnTimer" style="font-size:11px;font-weight:700;color:var(--ink-soft);margin-bottom:6px;min-height:14px;"></div>
+  <div id="disconnectBanner" style="display:none;background:#FFE0E0;color:#B5312A;font-weight:700;font-size:12px;padding:6px 12px;border-radius:12px;margin-bottom:8px;"></div>
 
   <div class="board-section">
     <span class="board-label">Твой флот</span>
     <div class="board own" id="ownBoard"></div>
   </div>
 
+  <div id="manualHint" style="display:none;font-weight:700;font-size:12.5px;color:var(--navy-dark);margin-bottom:6px;text-align:center;"></div>
   <div class="btn-row" id="placementControls">
+    <button class="btn-secondary" id="manualBtn">✋ Своя расстановка</button>
     <button class="btn-secondary" id="shuffleBtn">🎲 Перемешать</button>
     <button class="btn-main" id="readyBtn">Готов ⚓</button>
+  </div>
+  <div class="btn-row" id="manualControls" style="display:none;">
+    <button class="btn-secondary" id="rotateBtn">🔄 Повернуть</button>
+    <button class="btn-secondary" id="clearManualBtn">🧹 Очистить</button>
   </div>
   <div class="btn-row" id="gameControls" style="display:none;">
     <button class="btn-secondary" id="newGameBtn">Новая игра</button>
@@ -195,10 +207,41 @@ function getMyIdentity(){
 }
 const ME=getMyIdentity();
 
+// ---------- Личная статистика (победы/поражения) ----------
+function cloudAvailable(){ return window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.CloudStorage && typeof window.Telegram.WebApp.CloudStorage.getItem==='function'; }
+let myStats={wins:0,losses:0};
+function loadStats(cb){
+  if(cloudAvailable()){
+    window.Telegram.WebApp.CloudStorage.getItem('bs_stats',(err,val)=>{
+      try{ myStats=(!err&&val)?JSON.parse(val):JSON.parse(localStorage.getItem('bs_stats')||'{"wins":0,"losses":0}'); }
+      catch(e){ myStats={wins:0,losses:0}; }
+      cb&&cb();
+    });
+  } else {
+    try{ myStats=JSON.parse(localStorage.getItem('bs_stats')||'{"wins":0,"losses":0}'); } catch(e){ myStats={wins:0,losses:0}; }
+    cb&&cb();
+  }
+}
+let statsRecordedThisGame=false;
+function recordGameResult(won){
+  if(statsRecordedThisGame) return;
+  statsRecordedThisGame=true;
+  if(won) myStats.wins=(myStats.wins||0)+1; else myStats.losses=(myStats.losses||0)+1;
+  const json=JSON.stringify(myStats);
+  localStorage.setItem('bs_stats', json);
+  if(cloudAvailable()) window.Telegram.WebApp.CloudStorage.setItem('bs_stats', json, ()=>{});
+  updateStatsDisplay();
+}
+function updateStatsDisplay(){
+  const el=document.getElementById('statsDisplay');
+  if(el) el.textContent = `🏆 ${myStats.wins||0} побед · 💥 ${myStats.losses||0} поражений`;
+}
+
 // ---------- Игровые константы ----------
-const SIZE=8;
-const SHIP_LENGTHS=[4,3,3,2,2];
+const SIZE=10;
+const SHIP_LENGTHS=[4,3,3,3,2,2,2,2];
 const TOTAL_SHIP_CELLS=SHIP_LENGTHS.reduce((a,b)=>a+b,0);
+const SHIP_NAMES={4:'Линкор', 3:'Крейсер', 2:'Эсминец'};
 
 function idx(r,c){ return r*SIZE+c; }
 function emptyBoard(){ return '.'.repeat(SIZE*SIZE); }
@@ -219,7 +262,7 @@ function randomPlaceShips(){
   }
   SHIP_LENGTHS.forEach(len=>{
     let placed=false, attempts=0;
-    while(!placed && attempts<300){
+    while(!placed && attempts<800){
       attempts++;
       const horiz=Math.random()<0.5;
       const r=Math.floor(Math.random()*SIZE), c=Math.floor(Math.random()*SIZE);
@@ -283,10 +326,35 @@ function countHits(boardStr, shotsStr){
   return n;
 }
 
-function renderShipsLeft(shotsAgainstMe, myOwnBoard){
-  const sunkSet=shipSegmentsSunk(myOwnBoard, shotsAgainstMe);
-  document.getElementById('shipsLeft').innerHTML =
-    `<span class="ship-chip">Твой флот: ${TOTAL_SHIP_CELLS-Array.from(sunkSet).length}/${TOTAL_SHIP_CELLS} клеток</span>`;
+function shipsRemainingByClass(boardStr, shotsStr){
+  const ships=getShips(boardStr);
+  const sunkSet=shipSegmentsSunk(boardStr, shotsStr);
+  const counts={}; // length -> {total, alive}
+  SHIP_LENGTHS.forEach(len=>{ counts[len]=counts[len]||{total:0,alive:0}; counts[len].total++; });
+  ships.forEach(ship=>{
+    const isSunk = ship.cells.every(c=>sunkSet.has(c));
+    if(!isSunk) counts[ship.length].alive++;
+  });
+  return counts;
+}
+function fleetChipsHtml(counts, label){
+  const parts = Object.keys(counts).sort((a,b)=>b-a).map(len=>{
+    const c=counts[len];
+    const name = SHIP_NAMES[len] || (len+'-палубный');
+    const dead = c.total-c.alive;
+    return `<span class="ship-chip${c.alive===0?' sunk':''}">${name} ${c.alive}/${c.total}</span>`;
+  }).join('');
+  return `<div class="fleet-row"><span class="fleet-label">${label}</span><div class="fleet-chips">${parts}</div></div>`;
+}
+function renderShipsLeft(){
+  const myCounts = shipsRemainingByClass(myBoard, enemyShots);
+  let html = fleetChipsHtml(myCounts, 'Твой флот');
+  if(phase==='battle' || phase==='finished'){
+    const enemyBoardKnown = onlineMode ? (window.__enemyBoardCache||emptyBoard()) : (vsBot ? botBoard : emptyBoard());
+    const enemyCounts = shipsRemainingByClass(enemyBoardKnown, myShots);
+    html += fleetChipsHtml(enemyCounts, 'Флот соперника');
+  }
+  document.getElementById('shipsLeft').innerHTML = html;
 }
 
 function getShips(boardStr){
@@ -439,7 +507,7 @@ let prevOwnShots=null, prevEnemyShots=null;
 
 function renderOwnBoard(){
   ownBoardEl.innerHTML='';
-  const cellSize = Math.min(38, Math.floor((Math.min(window.innerWidth-30,440))/SIZE)-2);
+  const cellSize = Math.min(34, Math.floor((Math.min(window.innerWidth-24,460))/SIZE)-2);
   const gapPx=1.5, padPx=1.5;
   ownBoardEl.style.gridTemplateColumns=`repeat(${SIZE}, ${cellSize}px)`;
   const sunkSet = phase!=='placement' ? shipSegmentsSunk(myBoard, enemyShots) : new Set();
@@ -455,6 +523,10 @@ function renderOwnBoard(){
       ex.innerHTML='<div class="ring"></div><div class="core"></div>';
       d.appendChild(ex);
     }
+    if(phase==='placement' && manualMode){
+      d.style.cursor='pointer';
+      d.onclick=()=>placeNextShip(i);
+    }
     ownBoardEl.appendChild(d);
   }
   // корпуса своих кораблей всегда видны
@@ -463,7 +535,7 @@ function renderOwnBoard(){
 }
 function renderEnemyBoard(){
   enemyBoardEl.innerHTML='';
-  const cellSize = Math.min(46, Math.floor((Math.min(window.innerWidth-30,480))/SIZE)-2);
+  const cellSize = Math.min(42, Math.floor((Math.min(window.innerWidth-24,500))/SIZE)-2);
   const gapPx=2, padPx=2;
   enemyBoardEl.style.gridTemplateColumns=`repeat(${SIZE}, ${cellSize}px)`;
   const enemyBoardForSunk = onlineMode ? (window.__enemyBoardCache||emptyBoard()) : (vsBot ? botBoard : emptyBoard());
@@ -496,16 +568,90 @@ function renderEnemyBoard(){
 function renderAll(){
   renderOwnBoard();
   renderEnemyBoard();
-  renderShipsLeft(enemyShots, myBoard);
+  renderShipsLeft();
 }
+
+// ---------- Ручная расстановка ----------
+let manualMode=false, manualOrientation='horiz', manualQueue=[];
+function manualQueueFromLengths(){
+  // ставим от больших к меньшим — удобнее для игрока
+  return [...SHIP_LENGTHS].sort((a,b)=>b-a);
+}
+function updateManualHint(){
+  const hint=document.getElementById('manualHint');
+  if(!manualMode){ hint.style.display='none'; return; }
+  hint.style.display='block';
+  if(manualQueue.length===0){
+    hint.textContent='Флот расставлен! Можно нажать "Готов" ⚓';
+  } else {
+    const len=manualQueue[0];
+    const name=SHIP_NAMES[len]||(len+'-палубный');
+    hint.textContent=`Ставим: ${name} (${len} кл.) — ориентация: ${manualOrientation==='horiz'?'горизонтально ↔':'вертикально ↕'}. Тапни клетку начала.`;
+  }
+}
+function canPlaceOnBoard(boardStr, r,c,len,horiz){
+  for(let i=0;i<len;i++){
+    const rr=horiz?r:r+i, cc=horiz?c+i:c;
+    if(rr<0||rr>=SIZE||cc<0||cc>=SIZE) return false;
+    for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++){
+      const nr=rr+dr,nc=cc+dc;
+      if(nr>=0&&nr<SIZE&&nc>=0&&nc<SIZE&&boardStr[idx(nr,nc)]==='S') return false;
+    }
+  }
+  return true;
+}
+function placeNextShip(i){
+  if(!manualMode || manualQueue.length===0) return;
+  const r=Math.floor(i/SIZE), c=i%SIZE;
+  const len=manualQueue[0];
+  const horiz = manualOrientation==='horiz';
+  if(!canPlaceOnBoard(myBoard, r,c,len,horiz)){
+    setStatus('❌ Сюда нельзя — слишком близко к другому кораблю или край поля', undefined);
+    return;
+  }
+  let arr=myBoard.split('');
+  for(let k=0;k<len;k++){ const rr=horiz?r:r+k, cc=horiz?c+k:c; arr[idx(rr,cc)]='S'; }
+  myBoard=arr.join('');
+  manualQueue.shift();
+  updateManualHint();
+  renderAll();
+}
+document.getElementById('manualBtn').onclick=()=>{
+  if(phase!=='placement') return;
+  manualMode=true; manualOrientation='horiz';
+  myBoard=emptyBoard();
+  manualQueue=manualQueueFromLengths();
+  document.getElementById('manualControls').style.display='flex';
+  document.getElementById('shuffleBtn').style.display='none';
+  updateManualHint();
+  renderAll();
+};
+document.getElementById('rotateBtn').onclick=()=>{
+  manualOrientation = manualOrientation==='horiz' ? 'vert' : 'horiz';
+  updateManualHint();
+};
+document.getElementById('clearManualBtn').onclick=()=>{
+  myBoard=emptyBoard();
+  manualQueue=manualQueueFromLengths();
+  updateManualHint();
+  renderAll();
+};
 
 document.getElementById('shuffleBtn').onclick=()=>{
   if(phase!=='placement') return;
+  manualMode=false;
+  document.getElementById('manualControls').style.display='none';
+  document.getElementById('shuffleBtn').style.display='inline-block';
+  document.getElementById('manualHint').style.display='none';
   myBoard=randomPlaceShips();
   renderAll();
 };
 document.getElementById('readyBtn').onclick=()=>{
   if(phase!=='placement') return;
+  if(manualMode && manualQueue.length>0){
+    setStatus('⚠️ Сначала расставь все корабли', undefined);
+    return;
+  }
   if(onlineMode){ onlineSetReady(); return; }
   if(vsBot){ startBotGame(); return; }
   document.getElementById('onlineOverlay').classList.add('show');
@@ -514,8 +660,12 @@ document.getElementById('newGameBtn').onclick=resetToPlacement;
 
 function resetToPlacement(){
   phase='placement'; onlineMode=false; vsBot=false; myTurn=false;
+  manualMode=false; manualQueue=[];
+  document.getElementById('manualControls').style.display='none';
+  document.getElementById('shuffleBtn').style.display='inline-block';
+  document.getElementById('manualHint').style.display='none';
   myBoard=randomPlaceShips(); myShots=emptyBoard(); enemyShots=emptyBoard();
-  botBoard=null; botHuntQueue=[];
+  botBoard=null; botHuntQueue=[]; statsRecordedThisGame=false;
   document.getElementById('placementControls').style.display='flex';
   document.getElementById('gameControls').style.display='none';
   document.getElementById('onlineBadge').innerHTML='';
@@ -530,13 +680,56 @@ function startBotGame(){
   vsBot=true; onlineMode=false; phase='battle'; myTurn=true;
   botBoard=randomPlaceShips();
   myShots=emptyBoard(); enemyShots=emptyBoard();
-  botHuntQueue=[];
+  botHuntQueue=[]; statsRecordedThisGame=false;
   document.getElementById('placementControls').style.display='none';
   document.getElementById('gameControls').style.display='flex';
   document.getElementById('enemyLabel').textContent='Поле бота 🤖';
   setStatus('', '🎯 Твой ход!', 'mine');
   renderAll();
 }
+// ---------- Таймер хода (только онлайн) ----------
+const TURN_TIME_LIMIT=30;
+let turnTimerInterval=null, lastKnownTurnStart=null;
+function stopTurnTimer(){
+  if(turnTimerInterval){ clearInterval(turnTimerInterval); turnTimerInterval=null; }
+  document.getElementById('turnTimer').textContent='';
+}
+function startTurnTimerDisplay(turnStartedAt, isMyTurnNow){
+  if(turnTimerInterval) clearInterval(turnTimerInterval);
+  turnTimerInterval=setInterval(()=>{
+    if(phase!=='battle'){ stopTurnTimer(); return; }
+    const elapsed=(Date.now()-turnStartedAt)/1000;
+    const remaining=Math.max(0, Math.ceil(TURN_TIME_LIMIT-elapsed));
+    document.getElementById('turnTimer').textContent = '⏱ '+remaining+' сек на ход';
+    if(remaining<=0){
+      clearInterval(turnTimerInterval); turnTimerInterval=null;
+      if(isMyTurnNow) onlinePassTurn();
+    }
+  }, 500);
+}
+function onlinePassTurn(){
+  const oppSym = mySymbol==='X'?'O':'X';
+  db.ref('rooms/'+roomCode).update({ turn: oppSym, turnStartedAt: Date.now() });
+  setStatus('⌛ Время на ход вышло', undefined);
+}
+
+function haptic(type){
+  try{
+    const h = window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.HapticFeedback;
+    if(!h) return;
+    if(type==='hit') h.impactOccurred('medium');
+    else if(type==='miss') h.impactOccurred('light');
+    else if(type==='sunk') h.notificationOccurred('warning');
+    else if(type==='win') h.notificationOccurred('success');
+    else if(type==='lose') h.notificationOccurred('error');
+  }catch(e){}
+}
+function shipNameAt(boardStr, i){
+  const ships=getShips(boardStr);
+  const s=ships.find(sh=>sh.cells.includes(i));
+  return s ? (SHIP_NAMES[s.length]||(s.length+'-палубный')) : 'Корабль';
+}
+
 function fireAtEnemy(i){
   if(vsBot) return fireAtBot(i);
   if(onlineMode) return onlineFire(i);
@@ -548,10 +741,16 @@ function fireAtBot(i){
   renderAll();
   if(hit){
     const sunkSet=shipSegmentsSunk(botBoard, myShots);
-    if(sunkSet.has(i)) setStatus('💥 Корабль потоплен!', '🎯 Твой ход!', 'mine');
-    else setStatus('🎯 Попадание! Ходи ещё', '🎯 Твой ход!', 'mine');
+    if(sunkSet.has(i)){
+      haptic('sunk');
+      setStatus('💥 '+shipNameAt(botBoard,i)+' потоплен!', '🎯 Твой ход!', 'mine');
+    } else {
+      haptic('hit');
+      setStatus('🎯 Попадание! Ходи ещё', '🎯 Твой ход!', 'mine');
+    }
     if(countHits(botBoard,myShots)>=TOTAL_SHIP_CELLS){ endGame(true); return; }
   } else {
+    haptic('miss');
     setStatus('🌊 Мимо!', '🤖 Ход бота...', 'theirs');
     myTurn=false;
     setTimeout(botTurn, 700);
@@ -580,7 +779,9 @@ function botTurn(){
   renderAll();
   if(countHits(myBoard,enemyShots)>=TOTAL_SHIP_CELLS){ endGame(false); return; }
   if(hit){
-    setStatus('🤖 Бот попал!', '🤖 Ходит ещё...', 'theirs');
+    const sunkSet=shipSegmentsSunk(myBoard, enemyShots);
+    if(sunkSet.has(i)){ haptic('sunk'); setStatus('💥 Твой '+shipNameAt(myBoard,i)+' потоплен!', '🤖 Ходит ещё...', 'theirs'); }
+    else { haptic('hit'); setStatus('🤖 Бот попал!', '🤖 Ходит ещё...', 'theirs'); }
     setTimeout(botTurn, 700);
   } else {
     setStatus('🤖 Бот промазал.', '🎯 Твой ход!', 'mine');
@@ -590,6 +791,8 @@ function botTurn(){
 }
 function endGame(won){
   phase='finished'; renderAll();
+  haptic(won?'win':'lose');
+  recordGameResult(won);
   document.getElementById('resultTitle').textContent = won ? 'Победа! 🏆' : 'Поражение 💥';
   document.getElementById('resultText').textContent = won ? 'Ты потопил весь флот соперника!' : 'Твой флот пошёл ко дну...';
   document.getElementById('resultOverlay').classList.add('show');
@@ -623,7 +826,7 @@ document.getElementById('createRoomBtn').onclick=()=>{
   mySymbol='X';
   const initial={
     status:'placement', turn:'X',
-    players:{ X:{id:ME.id,name:ME.name,ready:false,board:emptyBoard()} },
+    players:{ X:{id:ME.id,name:ME.name,ready:false,board:emptyBoard(),connected:true} },
     shotsOnX: emptyBoard(), shotsOnO: emptyBoard(),
     winner:null
   };
@@ -633,6 +836,7 @@ document.getElementById('createRoomBtn').onclick=()=>{
     waitingOverlay.classList.add('show');
     onlineMode=true;
     startOnlineListener(code);
+    db.ref('rooms/'+code+'/players/X/connected').onDisconnect().set(false);
   });
 };
 document.getElementById('cancelRoomBtn').onclick=()=>{
@@ -660,11 +864,12 @@ document.getElementById('joinRoomBtn').onclick=()=>{
     }
     mySymbol='O';
     ref.update({
-      players: Object.assign({}, data.players, { O:{id:ME.id,name:ME.name,ready:false,board:emptyBoard()} })
+      players: Object.assign({}, data.players, { O:{id:ME.id,name:ME.name,ready:false,board:emptyBoard(),connected:true} })
     }).then(()=>{
       onlineOverlay.classList.remove('show');
       onlineMode=true;
       startOnlineListener(code);
+      db.ref('rooms/'+code+'/players/O/connected').onDisconnect().set(false);
     });
   });
 };
@@ -700,18 +905,35 @@ function startOnlineListener(code){
       window.__enemyBoardCache = data.players[oppSym].board;
       myTurn = data.turn===mySymbol;
 
+      // проверка отключения соперника
+      const oppConnected = data.players[oppSym] && data.players[oppSym].connected!==false;
+      const discBanner=document.getElementById('disconnectBanner');
+      if(!oppConnected && data.status==='battle'){
+        discBanner.style.display='block';
+        discBanner.textContent='⚠️ '+opponentName+' отключился. Можешь подождать или выйти в меню.';
+      } else {
+        discBanner.style.display='none';
+      }
+
       renderAll();
 
       if(data.status==='finished'){
+        stopTurnTimer();
         const iWon = data.winner===mySymbol;
         setStatus('', iWon ? '🏆 Победа!' : '💥 Поражение', iWon?'mine':'theirs');
         if(!document.getElementById('resultOverlay').classList.contains('show')){
+          haptic(iWon?'win':'lose');
+          recordGameResult(iWon);
           document.getElementById('resultTitle').textContent = iWon ? 'Победа! 🏆' : 'Поражение 💥';
           document.getElementById('resultText').textContent = iWon ? 'Ты потопил весь флот соперника!' : 'Твой флот пошёл ко дну...';
           document.getElementById('resultOverlay').classList.add('show');
         }
       } else {
         setStatus('', myTurn ? '🎯 Твой ход!' : `Ход соперника (${opponentName})`, myTurn?'mine':'theirs');
+        if(data.turnStartedAt && data.turnStartedAt!==lastKnownTurnStart){
+          lastKnownTurnStart=data.turnStartedAt;
+          startTurnTimerDisplay(data.turnStartedAt, myTurn);
+        }
       }
     }
   });
@@ -724,12 +946,12 @@ function enterPlacementUI(){
   renderAll();
 }
 function onlineSetReady(){
-  db.ref('rooms/'+roomCode+'/players/'+mySymbol).update({ ready:true, board: myBoard }).then(()=>{
+  db.ref('rooms/'+roomCode+'/players/'+mySymbol).update({ ready:true, board: myBoard, connected:true }).then(()=>{
     statusEl.textContent='Ждём готовности соперника...';
     db.ref('rooms/'+roomCode+'/players').on('value', snap=>{
       const players=snap.val();
       if(players && players.X && players.O && players.X.ready && players.O.ready){
-        db.ref('rooms/'+roomCode).update({ status:'battle' });
+        db.ref('rooms/'+roomCode).update({ status:'battle', turnStartedAt: Date.now() });
       }
     });
   });
@@ -741,7 +963,7 @@ function onlineFire(i){
   const hit = enemyBoardStr[i]==='S';
   const newMyShots = setChar(myShots, i, hit?'H':'M');
   const field = mySymbol==='X' ? 'shotsOnO' : 'shotsOnX';
-  const update = { [field]: newMyShots };
+  const update = { [field]: newMyShots, turnStartedAt: Date.now() };
   if(!hit) update.turn = oppSym;
   const totalHits = countHits(enemyBoardStr, newMyShots);
   if(totalHits>=TOTAL_SHIP_CELLS){ update.status='finished'; update.winner=mySymbol; }
@@ -749,6 +971,7 @@ function onlineFire(i){
 }
 function onlineRematch(){
   myBoard=randomPlaceShips();
+  statsRecordedThisGame=false;
   const updates={
     status:'placement', turn:'X', winner:null,
     shotsOnX: emptyBoard(), shotsOnO: emptyBoard()
@@ -769,6 +992,7 @@ function onlineRematch(){
 
 window.addEventListener('resize', renderAll);
 renderAll();
+loadStats(updateStatsDisplay);
 </script>
 </body>
 </html>
