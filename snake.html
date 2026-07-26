@@ -14,11 +14,21 @@
     touch-action:none;overscroll-behavior:none;
     background:linear-gradient(180deg,#BFF3E0 0%,#E9FBEF 55%,#FFF7E0 100%);overflow:hidden;}
   .wrap{position:fixed;inset:0;display:flex;flex-direction:column;}
-  .back-btn{position:fixed;top:12px;left:12px;width:42px;height:42px;border-radius:50%;background:var(--card-bg);
-    display:flex;align-items:center;justify-content:center;font-size:19px;text-decoration:none;color:var(--ink);
-    box-shadow:0 6px 0 rgba(0,0,0,0.06),0 8px 14px -6px rgba(30,70,53,0.3);z-index:20;}
-  .back-btn:active{transform:translateY(3px);box-shadow:0 3px 0 rgba(0,0,0,0.06);}
-  .hud{position:fixed;top:12px;left:64px;right:64px;display:flex;justify-content:space-between;align-items:center;
+  /* Единый стиль кнопок со всеми остальными играми */
+  .icon-btn{position:fixed;width:42px;height:42px;border-radius:50%;background:#0f1710;
+    display:flex;align-items:center;justify-content:center;text-decoration:none;color:var(--ink);
+    z-index:20;border:2px solid #35C57A;
+    box-shadow:0 6px 0 rgba(0,0,0,0.25),0 8px 14px -6px rgba(0,0,0,0.4), 0 0 14px rgba(53,197,122,0.55);
+    animation:pentagram-glow 2.4s ease-in-out infinite;}
+  .icon-btn:active{transform:translateY(3px);}
+  .icon-btn svg{width:20px;height:20px;filter:drop-shadow(0 0 3px rgba(53,197,122,0.9));}
+  .back-btn{top:12px;left:12px;}
+  .pause-btn{top:12px;right:12px;}
+  @keyframes pentagram-glow{
+    0%,100%{ box-shadow:0 6px 0 rgba(0,0,0,0.25),0 8px 14px -6px rgba(0,0,0,0.4), 0 0 10px rgba(53,197,122,0.45); }
+    50%{ box-shadow:0 6px 0 rgba(0,0,0,0.25),0 8px 14px -6px rgba(0,0,0,0.4), 0 0 20px rgba(53,197,122,0.85); }
+  }
+  .hud{position:fixed;top:16px;left:64px;right:64px;display:flex;justify-content:space-between;align-items:center;
     font-weight:700;font-size:13px;color:var(--ink-soft);z-index:20;}
   .score-badge{background:#FDEAF0;color:var(--pink-dark);padding:5px 13px;border-radius:20px;font-family:'Baloo 2',sans-serif;
     font-size:15px;box-shadow:0 4px 10px -4px rgba(30,70,53,0.3);transition:transform 0.2s;}
@@ -39,7 +49,19 @@
 </style>
 </head>
 <body>
-<a class="back-btn" href="index.html">⬅️</a>
+<a class="icon-btn back-btn" href="index.html">
+  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="50" cy="50" r="46" fill="none" stroke="#35C57A" stroke-width="3" opacity="0.5"/>
+    <path d="M60 20 L32 50 L60 80" fill="none" stroke="#35C57A" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+</a>
+<button class="icon-btn pause-btn" id="pauseBtn">
+  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="50" cy="50" r="46" fill="none" stroke="#35C57A" stroke-width="3" opacity="0.5"/>
+    <rect x="34" y="28" width="12" height="44" fill="#35C57A"/>
+    <rect x="56" y="28" width="12" height="44" fill="#35C57A"/>
+  </svg>
+</button>
 <div class="hud">
   <span class="level-badge" id="levelLabel">Уровень 1</span>
   <span class="score-badge" id="score">0</span>
@@ -61,12 +83,10 @@ if(window.Telegram && window.Telegram.WebApp){
   tg.ready(); tg.expand();
   if(typeof tg.disableVerticalSwipes==='function') tg.disableVerticalSwipes();
 }
-
 const canvas=document.getElementById('board');
 const ctx=canvas.getContext('2d');
 const cols=22, rows=22;
 let cell=16, W=0, H=0;
-
 function resizeCanvas(){
   const holder=document.querySelector('.board-holder');
   const size=Math.floor(Math.min(holder.clientWidth, holder.clientHeight));
@@ -79,19 +99,18 @@ function resizeCanvas(){
   W=px; H=px;
 }
 window.addEventListener('resize', resizeCanvas);
-
 const BASE_SPEED=170, MIN_SPEED=90, SPEED_STEP=10, APPLES_PER_LEVEL=5;
 const PALETTES=[
   ['#1E9E5E','#7BE3A6'], ['#1B7FA8','#8FD6F5'], ['#7647B8','#C8A9F0'],
   ['#C2507A','#F5AFC6'], ['#C97A1E','#FFCB80'], ['#B8367D','#F0A0C8']
 ];
 let snake, dir, nextDir, food, score, alive, loopId, level, speed, particles, foodPulse, palette, glowPulse;
-
+let paused=false;
 function reset(){
   resizeCanvas();
   snake=[{x:11,y:11},{x:10,y:11},{x:9,y:11}];
   dir={x:1,y:0}; nextDir=dir;
-  score=0; alive=true; level=1; speed=BASE_SPEED; particles=[]; foodPulse=0; glowPulse=0;
+  score=0; alive=true; paused=false; level=1; speed=BASE_SPEED; particles=[]; foodPulse=0; glowPulse=0;
   palette=PALETTES[0];
   document.getElementById('score').textContent=score;
   document.getElementById('levelLabel').textContent='Уровень '+level;
@@ -109,7 +128,7 @@ function updateLevel(){
     palette=PALETTES[(level-1)%PALETTES.length];
     document.getElementById('levelLabel').textContent='Уровень '+level;
     clearInterval(loopId);
-    loopId=setInterval(tick,speed);
+    if(!paused) loopId=setInterval(tick,speed);
   }
 }
 function placeFood(){
@@ -119,13 +138,18 @@ function placeFood(){
   }
 }
 function tick(){
+  if(paused || !alive) return;
   dir=nextDir;
   const head={x:snake[0].x+dir.x,y:snake[0].y+dir.y};
-  if(head.x<0||head.y<0||head.x>=cols||head.y>=rows||snake.some(s=>s.x===head.x&&s.y===head.y)){
+  // ФИКС: если змейка не ест яблоко, хвост освобождает клетку в этот же ход —
+  // заходить на неё головой законно, поэтому последний сегмент исключаем из проверки
+  const willEat = !!food && head.x===food.x && head.y===food.y;
+  const body = willEat ? snake : snake.slice(0,-1);
+  if(head.x<0||head.y<0||head.x>=cols||head.y>=rows||body.some(s=>s.x===head.x&&s.y===head.y)){
     gameOver();return;
   }
   snake.unshift(head);
-  if(head.x===food.x&&head.y===food.y){
+  if(willEat){
     score++;
     const scoreEl=document.getElementById('score');
     scoreEl.textContent=score;
@@ -140,10 +164,11 @@ function render(){
   particles.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.life--;});
   particles=particles.filter(p=>p.life>0);
   draw();
-  requestAnimationFrame(render);
+  if(paused) drawPauseOverlay();
+  if(alive) requestAnimationFrame(render);
 }
 function gameOver(){
-  alive=false; clearInterval(loopId);
+  alive=false; clearInterval(loopId); loopId=null;
   document.getElementById('finalScore').textContent='Счёт: '+score;
   document.getElementById('overlay').classList.add('show');
 }
@@ -199,23 +224,41 @@ function draw(){
     ctx.beginPath(); ctx.arc(cx+ox+dir.y*4,cy+oy-dir.x*4,1.2,0,Math.PI*2); ctx.fill();
   }
 }
+function drawPauseOverlay(){
+  ctx.fillStyle='rgba(0,0,0,0.45)';
+  ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#fff';
+  ctx.font='bold '+(cell*1.9)+'px "Baloo 2", sans-serif';
+  ctx.textAlign='center';
+  ctx.fillText('Пауза', W/2, H/2);
+  ctx.font='bold '+(cell*0.6)+'px "Nunito", sans-serif';
+  ctx.fillText('Нажми на паузу ещё раз', W/2, H/2+cell*1.2);
+}
 function hexToRgb(hex){ const n=parseInt(hex.slice(1),16); return [(n>>16)&255,(n>>8)&255,n&255]; }
 function roundRect(x,y,w,h,r){
   ctx.beginPath();
   ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
   ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
 }
-function setDir(x,y){ if(dir.x===-x&&dir.y===-y) return; nextDir={x,y}; }
-
+function setDir(x,y){
+  if(paused || !alive) return;
+  if(dir.x===-x&&dir.y===-y) return;
+  nextDir={x,y};
+}
+document.getElementById('pauseBtn').onclick=()=>{
+  if(!alive) return;
+  paused=!paused;
+  if(paused){ clearInterval(loopId); loopId=null; }
+  else { loopId=setInterval(tick,speed); }
+};
 document.addEventListener('keydown',e=>{
   if(e.key==='ArrowUp') setDir(0,-1);
   if(e.key==='ArrowDown') setDir(0,1);
   if(e.key==='ArrowLeft') setDir(-1,0);
   if(e.key==='ArrowRight') setDir(1,0);
 });
-
 // Тап или свайп — определяем направление относительно головы змейки
-let touchStartX=0, touchStartY=0;
+let touchStartX=0, touchStartY=0, lastTouchAt=0;
 function steerToward(clientX, clientY){
   const rect=canvas.getBoundingClientRect();
   const px=clientX-rect.left, py=clientY-rect.top;
@@ -228,6 +271,7 @@ canvas.addEventListener('touchstart',e=>{
   touchStartX=e.touches[0].clientX; touchStartY=e.touches[0].clientY;
 },{passive:true});
 canvas.addEventListener('touchend',e=>{
+  lastTouchAt=Date.now();
   const dx=e.changedTouches[0].clientX-touchStartX;
   const dy=e.changedTouches[0].clientY-touchStartY;
   const dist=Math.hypot(dx,dy);
@@ -237,10 +281,14 @@ canvas.addEventListener('touchend',e=>{
     steerToward(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
   }
 },{passive:true});
-canvas.addEventListener('click',e=>{ steerToward(e.clientX, e.clientY); });
-
+// ФИКС: на мобильных браузер шлёт синтетический click следом за touchend — гасим дубль
+canvas.addEventListener('click',e=>{
+  if(Date.now()-lastTouchAt < 700) return;
+  steerToward(e.clientX, e.clientY);
+});
 document.getElementById('restart').onclick=reset;
-reset();
+if(document.readyState==='complete' || document.readyState==='interactive') reset();
+else window.addEventListener('DOMContentLoaded', reset);
 </script>
 </body>
 </html>
