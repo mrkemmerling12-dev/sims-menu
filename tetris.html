@@ -98,7 +98,6 @@ if(window.Telegram && window.Telegram.WebApp){
   tg.ready(); tg.expand();
   if(typeof tg.disableVerticalSwipes==='function') tg.disableVerticalSwipes();
 }
-
 const cols=10, rows=20;
 let cell=22;
 const canvas=document.getElementById('board');
@@ -106,8 +105,10 @@ const ctx=canvas.getContext('2d');
 const nextCanvas=document.getElementById('next');
 const nctx=nextCanvas.getContext('2d');
 const START_SPEED=900, MIN_SPEED=250, LINES_PER_LEVEL=5, SPEED_STEP=45;
+const CLEAR_DELAY=140;
 let grid, current, nextPiece, score, lines, level, alive, dropCounter, dropInterval, lastTime, flashRows, flashTimer, landFlash, landFlashTimer;
-
+// ФИКС: пока строки мигают и удаляются, поле "заморожено" — фигура не спавнится и не двигается
+let locked=false;
 function resizeCanvas(){
   const holder=document.querySelector('.board-holder');
   const availW=holder.clientWidth, availH=holder.clientHeight;
@@ -120,7 +121,6 @@ function resizeCanvas(){
   canvas.style.borderRadius='14px';
 }
 window.addEventListener('resize', resizeCanvas);
-
 const COLORS={ I:'#4FB8E8', J:'#3A6FDE', L:'#FFA940', O:'#FFC94D', S:'#35C57A', T:'#A87BE0', Z:'#F58FB3' };
 const SHAPES={
   I:[[1,1,1,1]], J:[[1,0,0],[1,1,1]], L:[[0,0,1],[1,1,1]],
@@ -164,44 +164,58 @@ function merge(){
   const {shape,color,x,y}=current;
   shape.forEach((row,r)=>row.forEach((v,c)=>{ if(v && y+r>=0) grid[y+r][x+c]=color; }));
 }
-function clearLines(){
+// ФИКС: clearLines теперь сообщает, когда строки РЕАЛЬНО удалены — новая фигура ждёт этого момента
+function clearLines(onDone){
   let full=[];
   for(let r=0;r<rows;r++) if(grid[r].every(v=>v)) full.push(r);
-  if(full.length){
-    flashRows=full; flashTimer=8;
-    setTimeout(()=>{
-      full.sort((a,b)=>a-b).forEach(r=>{ grid.splice(r,1); grid.unshift(Array(cols).fill(null)); });
-      const points=[0,100,300,500,800][full.length]||1000;
-      score+=points; lines+=full.length;
-      level=Math.floor(lines/LINES_PER_LEVEL)+1;
-      document.getElementById('score').textContent='Очки: '+score;
-      document.getElementById('lines').textContent='Линии: '+lines;
-      document.getElementById('level').textContent='Уровень: '+level;
-      dropInterval=Math.max(MIN_SPEED, START_SPEED-(level-1)*SPEED_STEP);
-    }, 140);
-  }
+  if(!full.length){ onDone(); return; }
+  flashRows=full; flashTimer=8;
+  setTimeout(()=>{
+    full.sort((a,b)=>a-b).forEach(r=>{ grid.splice(r,1); grid.unshift(Array(cols).fill(null)); });
+    const points=[0,100,300,500,800][full.length]||1000;
+    score+=points; lines+=full.length;
+    level=Math.floor(lines/LINES_PER_LEVEL)+1;
+    document.getElementById('score').textContent='Очки: '+score;
+    document.getElementById('lines').textContent='Линии: '+lines;
+    document.getElementById('level').textContent='Уровень: '+level;
+    dropInterval=Math.max(MIN_SPEED, START_SPEED-(level-1)*SPEED_STEP);
+    onDone();
+  }, CLEAR_DELAY);
+}
+function spawnNext(){
+  current=newPiece();
+  if(collide(current.x,current.y,current.shape)) gameOver();
 }
 function drop(){
-  if(paused) return;
+  if(paused || locked || !alive) return;
   if(!collide(current.x,current.y+1,current.shape)){
     current.y++;
   } else {
     landFlash=[]; current.shape.forEach((row,r)=>row.forEach((v,c)=>{ if(v) landFlash.push({x:current.x+c,y:current.y+r}); }));
     landFlashTimer=6;
     merge();
-    clearLines();
-    current=newPiece();
-    if(collide(current.x,current.y,current.shape)) gameOver();
+    locked=true;
+    clearLines(()=>{
+      locked=false;
+      if(alive) spawnNext();
+    });
   }
   dropCounter=0;
 }
-function move(dx){ if(paused) return; if(!collide(current.x+dx,current.y,current.shape)) current.x+=dx; }
+function move(dx){ if(paused||locked||!alive) return; if(!collide(current.x+dx,current.y,current.shape)) current.x+=dx; }
 function doRotate(){
-  if(paused) return;
+  if(paused||locked||!alive) return;
   const rotated=rotate(current.shape);
-  let kick=0;
-  if(collide(current.x,current.y,rotated)) kick = (current.x+rotated[0].length>cols) ? -1 : 1;
-  if(!collide(current.x+kick,current.y,rotated)){ current.shape=rotated; current.x+=kick; }
+  // ФИКС: раньше пробовался единственный сдвиг на 1 клетку, поэтому длинная I-фигура
+  // у самой стены (и любая фигура, упёршаяся в стакан) просто отказывалась вращаться.
+  // Теперь перебираем несколько вариантов отскока — как в классическом тетрисе.
+  const kicks=[0,-1,1,-2,2];
+  for(const kick of kicks){
+    if(!collide(current.x+kick,current.y,rotated)){
+      current.shape=rotated; current.x+=kick;
+      return;
+    }
+  }
 }
 function shade(hex, amt){
   const n=parseInt(hex.slice(1),16);
@@ -233,11 +247,14 @@ function draw(){
     flashRows.forEach(r=> ctx.fillRect(0,r*cell,pxW,cell));
     flashTimer--;
   }
-  const gy=ghostY();
-  ctx.globalAlpha=0.25;
-  current.shape.forEach((row,r)=>row.forEach((v,c)=>{ if(v) drawCell(ctx,current.x+c,gy+r,current.color,cell); }));
-  ctx.globalAlpha=1;
-  current.shape.forEach((row,r)=>row.forEach((v,c)=>{ if(v) drawCell(ctx,current.x+c,current.y+r,current.color,cell); }));
+  // во время "заморозки" активной фигуры на поле уже нет — она слилась с сеткой
+  if(!locked && current){
+    const gy=ghostY();
+    ctx.globalAlpha=0.25;
+    current.shape.forEach((row,r)=>row.forEach((v,c)=>{ if(v) drawCell(ctx,current.x+c,gy+r,current.color,cell); }));
+    ctx.globalAlpha=1;
+    current.shape.forEach((row,r)=>row.forEach((v,c)=>{ if(v) drawCell(ctx,current.x+c,current.y+r,current.color,cell); }));
+  }
 }
 function drawNext(){
   nctx.clearRect(0,0,nextCanvas.width,nextCanvas.height);
@@ -252,20 +269,27 @@ function drawNext(){
 }
 function gameOver(){
   alive=false;
+  locked=false;
   document.getElementById('finalScore').textContent='Очки: '+score;
   document.getElementById('overlay').classList.add('show');
 }
 let paused=false;
-function loop(time=0){
+function loop(time){
   if(!alive) return;
   if(paused){
     draw();
     drawPauseOverlay();
     return;
   }
-  const delta=time-lastTime; lastTime=time;
-  dropCounter+=delta;
-  if(dropCounter>dropInterval) drop();
+  // ФИКС: первый кадр больше не даёт огромную дельту и мгновенный дроп
+  if(!lastTime) lastTime=time;
+  let delta=time-lastTime;
+  lastTime=time;
+  if(delta>200) delta=200; // после сворачивания приложения не проваливаемся вниз пачкой
+  if(!locked){
+    dropCounter+=delta;
+    if(dropCounter>dropInterval) drop();
+  }
   draw();
   requestAnimationFrame(loop);
 }
@@ -283,11 +307,11 @@ function drawPauseOverlay(){
 document.getElementById('pauseBtn').onclick=()=>{
   if(!alive) return;
   paused=!paused;
-  if(!paused){ lastTime=performance.now(); requestAnimationFrame(loop); }
+  if(!paused){ lastTime=0; requestAnimationFrame(loop); }
 };
 function reset(){
   resizeCanvas();
-  grid=emptyGrid(); score=0; lines=0; level=1; alive=true; paused=false;
+  grid=emptyGrid(); score=0; lines=0; level=1; alive=true; paused=false; locked=false;
   dropCounter=0; dropInterval=START_SPEED; lastTime=0; flashTimer=0; flashRows=[]; landFlash=[]; landFlashTimer=0;
   nextPiece=null;
   document.getElementById('score').textContent='Очки: 0';
@@ -320,8 +344,9 @@ canvas.addEventListener('touchend',e=>{
   const dy=e.changedTouches[0].clientY-touchStartY;
   if(!touchMoved){ if(dy>40) drop(); else doRotate(); }
 },{passive:true});
-window.addEventListener('load', reset);
-if(document.readyState==='complete') reset();
+// ФИКС: одна точка запуска вместо двух конкурирующих
+if(document.readyState==='complete' || document.readyState==='interactive') reset();
+else window.addEventListener('DOMContentLoaded', reset);
 </script>
 </body>
 </html>
