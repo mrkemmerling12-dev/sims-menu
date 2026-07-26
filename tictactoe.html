@@ -78,7 +78,6 @@
     <button class="btn-online" id="onlineBtn">👥 Играть онлайн</button>
   </div>
 </div>
-
 <div class="overlay" id="onlineOverlay">
   <div class="modal">
     <button class="close-x" id="closeOnlineModal">✕</button>
@@ -94,7 +93,6 @@
     </div>
   </div>
 </div>
-
 <div class="overlay" id="waitingOverlay">
   <div class="modal">
     <h2>Комната создана! 🎉</h2>
@@ -109,23 +107,21 @@
     </div>
   </div>
 </div>
-
 <script>
 if(window.Telegram && window.Telegram.WebApp){
   const tg=window.Telegram.WebApp;
   tg.ready(); tg.expand();
   if(typeof tg.disableVerticalSwipes==='function') tg.disableVerticalSwipes();
 }
-
-// ---------- Firebase ----------
+// ---------- Firebase (новый проект sims-menu-games-2) ----------
 const firebaseConfig = {
-  apiKey: "AIzaSyBVACpD9ePF5TPgb-wfGC6N42vUKx8NdYE",
-  authDomain: "sims-menu-games.firebaseapp.com",
-  databaseURL: "https://sims-menu-games-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "sims-menu-games",
-  storageBucket: "sims-menu-games.firebasestorage.app",
-  messagingSenderId: "713107160478",
-  appId: "1:713107160478:web:8d7c15547c6da94a966a8f"
+  apiKey: "AIzaSyCrJMG_08oGzYacC317lMYkWTyIiS0IHFA",
+  authDomain: "sims-menu-games-2.firebaseapp.com",
+  databaseURL: "https://sims-menu-games-2-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "sims-menu-games-2",
+  storageBucket: "sims-menu-games-2.firebasestorage.app",
+  messagingSenderId: "207186943278",
+  appId: "1:207186943278:web:2214b83e6218b86baaaebf"
 };
 let fbApp=null, db=null, fbReady=false;
 try{
@@ -133,7 +129,6 @@ try{
   db = firebase.database();
   fbReady = true;
 }catch(e){ console.error('Firebase init error:', e); fbReady=false; }
-
 function getMyIdentity(){
   try{
     const u = window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user;
@@ -144,7 +139,6 @@ function getMyIdentity(){
   return { id: gid, name: 'Игрок' };
 }
 const ME = getMyIdentity();
-
 const boardEl=document.getElementById('board');
 const statusEl=document.getElementById('status');
 let cells=Array(9).fill(null);
@@ -152,17 +146,13 @@ let turn='X';
 let over=false;
 let vsBot=false;
 let scores={X:0,O:0,D:0};
-
 // ---------- Онлайн-состояние ----------
 let onlineMode=false, roomCode=null, mySymbol=null, roomRef=null, opponentName='Соперник';
-
 // Firebase не умеет нормально хранить массивы с null (обрезает их) —
 // поэтому храним поле как строку из 9 символов: '_' = пусто, 'X' или 'O'
 function boardToString(arr){ return arr.map(v=>v||'_').join(''); }
 function stringToBoard(str){ return (str||'_________').split('').map(c=>c==='_'?null:c); }
-
 const wins=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
-
 function render(winLine){
   boardEl.innerHTML='';
   cells.forEach((v,i)=>{
@@ -181,7 +171,6 @@ function checkWinner(){
   if(cells.every(c=>c)) return {winner:'D',line:null};
   return null;
 }
-
 // ---------- Локальная игра (2 игрока / против бота) ----------
 function play(i){
   if(over || cells[i]) return;
@@ -237,11 +226,9 @@ document.getElementById('mode').onclick=(e)=>{
   statusEl.textContent='Ход игрока Х';
   render();
 };
-
 // ---------- Онлайн-режим ----------
 const onlineOverlay=document.getElementById('onlineOverlay');
 const waitingOverlay=document.getElementById('waitingOverlay');
-
 document.getElementById('onlineBtn').onclick=()=>{
   if(!fbReady){
     statusEl.textContent='Онлайн-режим временно недоступен 😕';
@@ -250,14 +237,12 @@ document.getElementById('onlineBtn').onclick=()=>{
   onlineOverlay.classList.add('show');
 };
 document.getElementById('closeOnlineModal').onclick=()=>onlineOverlay.classList.remove('show');
-
 function genRoomCode(){
   const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code='';
   for(let i=0;i<5;i++) code+=chars[Math.floor(Math.random()*chars.length)];
   return code;
 }
-
 function startOnlineListener(code){
   roomCode=code;
   roomRef=db.ref('rooms/'+code);
@@ -268,12 +253,10 @@ function startOnlineListener(code){
     turn = data.turn || 'X';
     over = data.status==='finished';
     scores = data.scores || {X:0,O:0,D:0};
-
     if(data.players){
       const oppSym = mySymbol==='X' ? 'O' : 'X';
       if(data.players[oppSym] && data.players[oppSym].name) opponentName=data.players[oppSym].name;
     }
-
     if(data.status==='waiting'){
       document.getElementById('waitingStatus').textContent='⏳ Ждём второго игрока...';
     } else if(data.status!=='waiting' && waitingOverlay.classList.contains('show')){
@@ -283,7 +266,6 @@ function startOnlineListener(code){
       document.getElementById('onlineBtn').style.display='none';
       document.getElementById('onlineBadge').innerHTML = `<span class="online-badge">🟢 Онлайн: ты — ${mySymbol==='X'?'❌':'⭕'}, соперник — ${opponentName}</span>`;
     }
-
     if(data.status==='finished' && data.winLine!==undefined){
       const winnerText = data.winner==='D' ? 'Ничья! 🤝' : ((data.winner==='X'?'Х':'О') + ' победил! 🎉');
       statusEl.textContent=winnerText;
@@ -300,7 +282,6 @@ function startOnlineListener(code){
     document.getElementById('scoreD').textContent='Ничьи: '+(scores.D||0);
   });
 }
-
 document.getElementById('createRoomBtn').onclick=()=>{
   const code=genRoomCode();
   mySymbol='X';
@@ -358,7 +339,6 @@ document.getElementById('joinRoomBtn').onclick=()=>{
     console.error(err);
   });
 };
-
 function onlineMove(i){
   if(!onlineMode || over || cells[i] || turn!==mySymbol) return;
   const newCells=cells.slice();
@@ -387,7 +367,6 @@ function onlineNewRound(){
     board:'_________', turn:'X', status:'playing', winner:null, winLine:null
   });
 }
-
 // Автоприсоединение по ссылке ?room=КОД
 (function checkUrlRoom(){
   const params=new URLSearchParams(window.location.search);
@@ -397,7 +376,6 @@ function onlineNewRound(){
     onlineOverlay.classList.add('show');
   }
 })();
-
 render();
 </script>
 </body>
