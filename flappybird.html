@@ -111,19 +111,32 @@ if(window.Telegram && window.Telegram.WebApp){
   tg.ready(); tg.expand();
   if(typeof tg.disableVerticalSwipes==='function') tg.disableVerticalSwipes();
 }
-
 const canvas=document.getElementById('board');
 const ctx=canvas.getContext('2d');
 let W=0,H=0;
 function resizeCanvas(){
   const holder=document.querySelector('.board-holder');
   const dpr=Math.min(window.devicePixelRatio||1, 2);
+  const prevW=W, prevH=H;
   W=holder.clientWidth; H=holder.clientHeight;
   canvas.width=W*dpr; canvas.height=H*dpr;
   ctx.setTransform(dpr,0,0,dpr,0,0);
+  // ФИКС: раньше при смене размера окна (клавиатура Telegram, поворот экрана,
+  // разворачивание WebApp) птица и трубы оставались в старых координатах —
+  // геометрия разъезжалась вплоть до мгновенной смерти. Теперь всё масштабируется.
+  if(prevW && prevH && (prevW!==W || prevH!==H)){
+    const sx=W/prevW, sy=H/prevH;
+    if(typeof bird==='object' && bird){
+      bird.x*=sx; bird.y*=sy; bird.r*=sy; bird.v*=sy;
+    }
+    if(Array.isArray(pipes)) pipes.forEach(p=>{ p.x*=sx; p.top*=sy; p.gap*=sy; });
+    if(Array.isArray(clouds)) clouds.forEach(c=>{ c.x*=sx; c.y*=sy; });
+    if(Array.isArray(stars)) stars.forEach(s=>{ s.x*=sx; s.y*=sy; });
+    if(typeof speed==='number') speed*=sx;
+    pipeInterval=Math.max(1, Math.round(W*0.42));
+  }
 }
 window.addEventListener('resize', resizeCanvas);
-
 // ---------- Скины: постоянные, открываются каждые 50 очков рекорда ----------
 const SKINS=[
   {id:'classic',   emoji:'🐤',  name:'Классика', unlock:0,   body:'#FFC94D', bodyLight:'#FFE29A', beak:'#FF8A3D', sky:['#8FE0D8','#DFF7EA']},
@@ -135,63 +148,64 @@ const SKINS=[
   {id:'platinum',  emoji:'🦢',  name:'Платина',  unlock:300, body:'#E5E8F5', bodyLight:'#FFFFFF', beak:'#B7A8E0', sky:['#D6D9F5','#F3F0FF']},
   {id:'gigachad',  emoji:'🗿',  name:'Гигачад',  unlock:350, body:'#D9D2C4', bodyLight:'#F0ECE0', beak:'#8B7D5A', sky:['#B8AC94','#E8E0CC'], extra:'gigachad'},
 ];
-// ---------- Хранение рекорда и скина: Telegram CloudStorage (привязано к аккаунту, не к устройству) ----------
-let BEST=0, SELECTED_SKIN='classic', dataLoaded=false;
-function cloudAvailable(){ return window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.CloudStorage; }
-function loadUserData(cb){
-  if(cloudAvailable()){
-    const tg=window.Telegram.WebApp;
-    tg.CloudStorage.getItem('flappy_best',(err,val)=>{
-      BEST = (!err && val) ? (parseInt(val,10)||0) : (parseInt(localStorage.getItem('flappy_best')||'0',10));
-      tg.CloudStorage.getItem('flappy_skin',(err2,val2)=>{
-        SELECTED_SKIN = (!err2 && val2) ? val2 : (localStorage.getItem('flappy_skin')||'classic');
-        localStorage.setItem('flappy_best', String(BEST));
-        localStorage.setItem('flappy_skin', SELECTED_SKIN);
-        dataLoaded=true; cb();
+// ---------- Хранение: Telegram CloudStorage (за аккаунтом) + localStorage как страховка ----------
+let BEST=0, SELECTED_SKIN='classic', RECORDS=[], dataLoaded=false;
+const CLOUD_TIMEOUT=2500;
+function cloudAvailable(){
+  return !!(window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.CloudStorage
+    && typeof window.Telegram.WebApp.CloudStorage.getItem==='function');
+}
+// ФИКС: если Telegram не ответит, промис всё равно завершится — игра не зависнет на пустом экране
+function cloudGet(key){
+  return new Promise(resolve=>{
+    if(!cloudAvailable()){ resolve(null); return; }
+    let settled=false;
+    const timer=setTimeout(()=>{ if(!settled){ settled=true; resolve(null); } }, CLOUD_TIMEOUT);
+    try{
+      window.Telegram.WebApp.CloudStorage.getItem(key,(err,val)=>{
+        if(settled) return;
+        settled=true; clearTimeout(timer);
+        resolve(err?null:val);
       });
-    });
-  } else {
-    BEST=parseInt(localStorage.getItem('flappy_best')||'0',10);
-    SELECTED_SKIN=localStorage.getItem('flappy_skin')||'classic';
-    dataLoaded=true; cb();
-  }
+    }catch(e){
+      if(!settled){ settled=true; clearTimeout(timer); resolve(null); }
+    }
+  });
+}
+function cloudSet(key,val){
+  if(!cloudAvailable()) return;
+  try{ window.Telegram.WebApp.CloudStorage.setItem(key,String(val),()=>{}); }catch(e){}
+}
+function localInt(key){ const n=parseInt(localStorage.getItem(key)||'0',10); return Number.isFinite(n)?n:0; }
+async function loadUserData(){
+  const [bestVal, skinVal, recVal] = await Promise.all([
+    cloudGet('flappy_best'), cloudGet('flappy_skin'), cloudGet('flappy_records')
+  ]);
+  const cloudBest=parseInt(bestVal,10);
+  // берём максимум — облако могло не догрузиться, но локальный рекорд терять нельзя
+  BEST=Math.max(Number.isFinite(cloudBest)?cloudBest:0, localInt('flappy_best'));
+  SELECTED_SKIN = skinVal || localStorage.getItem('flappy_skin') || 'classic';
+  try{ RECORDS = JSON.parse(recVal || localStorage.getItem('flappy_records') || '[]'); }
+  catch(e){ RECORDS=[]; }
+  if(!Array.isArray(RECORDS)) RECORDS=[];
+  localStorage.setItem('flappy_best', String(BEST));
+  localStorage.setItem('flappy_skin', SELECTED_SKIN);
+  dataLoaded=true;
 }
 function getBest(){ return BEST; }
-function setBest(v){
-  BEST=v; localStorage.setItem('flappy_best', String(v));
-  if(cloudAvailable()) window.Telegram.WebApp.CloudStorage.setItem('flappy_best', String(v), ()=>{});
-}
+function setBest(v){ BEST=v; localStorage.setItem('flappy_best', String(v)); cloudSet('flappy_best', v); }
 function getUnlocked(){ const best=getBest(); return SKINS.filter(s=>best>=s.unlock).map(s=>s.id); }
 function getSelectedSkinId(){ return SELECTED_SKIN; }
-function setSelectedSkinId(id){
-  SELECTED_SKIN=id; localStorage.setItem('flappy_skin', id);
-  if(cloudAvailable()) window.Telegram.WebApp.CloudStorage.setItem('flappy_skin', id, ()=>{});
-}
+function setSelectedSkinId(id){ SELECTED_SKIN=id; localStorage.setItem('flappy_skin', id); cloudSet('flappy_skin', id); }
 function currentSkin(){ return SKINS.find(s=>s.id===getSelectedSkinId()) || SKINS[0]; }
-
-// ---------- Личные рекорды (топ-10 попыток) ----------
-let RECORDS=[];
-function loadRecords(cb){
-  if(cloudAvailable()){
-    window.Telegram.WebApp.CloudStorage.getItem('flappy_records',(err,val)=>{
-      try{ RECORDS = (!err && val) ? JSON.parse(val) : JSON.parse(localStorage.getItem('flappy_records')||'[]'); }
-      catch(e){ RECORDS=[]; }
-      cb && cb();
-    });
-  } else {
-    try{ RECORDS=JSON.parse(localStorage.getItem('flappy_records')||'[]'); } catch(e){ RECORDS=[]; }
-    cb && cb();
-  }
-}
 function saveRecordEntry(sc){
   if(sc<=0) return;
-  const entry={score:sc, date:new Date().toLocaleDateString('ru-RU')};
-  RECORDS.push(entry);
+  RECORDS.push({score:sc, date:new Date().toLocaleDateString('ru-RU')});
   RECORDS.sort((a,b)=>b.score-a.score);
   RECORDS=RECORDS.slice(0,10);
   const json=JSON.stringify(RECORDS);
   localStorage.setItem('flappy_records', json);
-  if(cloudAvailable()) window.Telegram.WebApp.CloudStorage.setItem('flappy_records', json, ()=>{});
+  cloudSet('flappy_records', json);
 }
 function renderRecords(){
   const list=document.getElementById('recordsList');
@@ -203,7 +217,6 @@ function renderRecords(){
 }
 document.getElementById('recordsBtn').onclick=()=>{ renderRecords(); document.getElementById('recordsOverlay').classList.add('show'); };
 document.getElementById('closeRecords').onclick=()=>{ document.getElementById('recordsOverlay').classList.remove('show'); };
-
 function renderSkinsGrid(){
   const grid=document.getElementById('skinsGrid');
   grid.innerHTML='';
@@ -219,24 +232,24 @@ function renderSkinsGrid(){
 }
 document.getElementById('skinBtn').onclick=()=>{ renderSkinsGrid(); document.getElementById('skinOverlay').classList.add('show'); };
 document.getElementById('closeSkins').onclick=()=>{ document.getElementById('skinOverlay').classList.remove('show'); };
-
 // ---------- Игровые параметры ----------
+// Все значения ниже заданы "на кадр при 60 fps" и домножаются на dt — см. loop()
 const BASE_SPEED_R=0.0044, MAX_SPEED_R=0.0092, SPEED_STEP_R=0.0004, SCORE_PER_LEVEL=5;
 const GRAVITY_R=0.00052, JUMP_R=-0.0135, MAX_FALL_R=0.0155, MAX_RISE_R=-0.0155;
 const DARK_CYCLE=20, DARK_DURATION=5;   // кладбище + ворона
 const NYAN_CYCLE=50, NYAN_DURATION=5;   // радуга + Nyan Cat
-
-let bird, pipes, score, alive, frame, level, clouds, particles, speed;
+const COUNTDOWN_TICKS=40;               // "кадров" при 60 fps на одну цифру отсчёта
+let bird, pipes, score, alive, level, clouds, particles, speed;
 let state='countdown';
-let countdownVal=3, countdownTimer=0;
+let countdownVal=3, countdownAccum=0;
+let pipeAccum=0, pipeInterval=100;
+let lastTime=0;
 let mode='normal'; // normal | dark | nyan
 let prevMode='normal';
 let transformParticles=[], spinBoost=0;
 let stars=[];
-
 function isDarkScore(s){ if(s<DARK_CYCLE) return false; return (s%DARK_CYCLE)<DARK_DURATION; }
 function isNyanScore(s){ if(s<NYAN_CYCLE) return false; return (s%NYAN_CYCLE)<NYAN_DURATION; }
-
 function activeVisual(){
   if(mode==='nyan') return {emoji:'🌈', body:'#F58FB3', bodyLight:'#FFD1E6', beak:'#FF6FA6', nyan:true};
   if(mode==='dark') return {emoji:'🐦‍⬛', body:'#2b2b36', bodyLight:'#454554', beak:'#8a8a9a'};
@@ -246,12 +259,14 @@ function reset(){
   resizeCanvas();
   bird={x:W*0.22,y:H/2,v:0,r:H*0.023,angle:0,wing:0};
   pipes=[]; particles=[]; transformParticles=[]; spinBoost=0;
-  score=0; alive=true; frame=0; level=1; speed=BASE_SPEED_R*W;
+  score=0; alive=true; level=1; speed=BASE_SPEED_R*W;
   mode='normal'; prevMode='normal';
   clouds=Array.from({length:5},(_,i)=>({x:Math.random()*W,y:H*0.08+i*H*0.11+Math.random()*20,s:0.5+Math.random()*0.7}));
   stars=Array.from({length:40},()=>({x:Math.random()*W,y:Math.random()*H*0.7,r:Math.random()*1.6+0.4,tw:Math.random()*Math.PI*2}));
   document.getElementById('overlay').classList.remove('show');
-  state='countdown'; countdownVal=3; countdownTimer=0;
+  state='countdown'; countdownVal=3; countdownAccum=0;
+  pipeInterval=Math.max(1, Math.round(W*0.42));
+  pipeAccum=0; lastTime=0;
   spawnPipe();
   requestAnimationFrame(loop);
 }
@@ -290,33 +305,41 @@ function spawnPipe(){
 }
 function pipeW(){ return W*0.135; }
 function groundH(){ return H*0.02; }
-function loop(){
+function loop(time){
   if(state==='paused'){
     draw();
     drawPauseOverlay();
     return;
   }
+  // ФИКС: всё движение считается от времени, а не от количества кадров.
+  // На экранах 90/120 Гц игра больше не ускоряется в 1.5–2 раза.
+  if(!lastTime) lastTime=time;
+  let delta=time-lastTime;
+  lastTime=time;
+  if(delta>100) delta=100;         // после сворачивания приложения не телепортируемся
+  const dt=delta/(1000/60);        // 1.0 == один кадр при 60 fps
   if(state==='countdown'){
-    countdownTimer++;
-    if(countdownTimer%40===0){ countdownVal--; }
+    countdownAccum+=dt;
+    while(countdownAccum>=COUNTDOWN_TICKS){ countdownAccum-=COUNTDOWN_TICKS; countdownVal--; }
     if(countdownVal<0){ state='playing'; }
     draw();
     requestAnimationFrame(loop);
     return;
   }
   if(state!=='playing'){ return; }
-  frame++;
-  const gravity=GRAVITY_R*H, jump=JUMP_R*H, maxFall=MAX_FALL_R*H, maxRise=MAX_RISE_R*H;
-  bird.v+=gravity;
+  const gravity=GRAVITY_R*H, maxFall=MAX_FALL_R*H, maxRise=MAX_RISE_R*H;
+  bird.v+=gravity*dt;
   bird.v=Math.max(maxRise, Math.min(maxFall, bird.v));
-  bird.y+=bird.v;
-  bird.angle += ((bird.v*4)-bird.angle)*0.15;
-  bird.wing += 0.3;
-  clouds.forEach(c=>{ c.x-=speed*0.22*c.s; if(c.x<-40){c.x=W+40; c.y=H*0.06+Math.random()*(H*0.5);} });
-  stars.forEach(s=>{ s.tw+=0.05; });
-  if(frame%Math.round(W*0.42)===0) spawnPipe();
+  bird.y+=bird.v*dt;
+  const angleEase=1-Math.pow(1-0.15, dt);
+  bird.angle += ((bird.v*4)-bird.angle)*angleEase;
+  bird.wing += 0.3*dt;
+  clouds.forEach(c=>{ c.x-=speed*0.22*c.s*dt; if(c.x<-40){c.x=W+40; c.y=H*0.06+Math.random()*(H*0.5);} });
+  stars.forEach(s=>{ s.tw+=0.05*dt; });
+  pipeAccum+=dt;
+  while(pipeAccum>=pipeInterval){ pipeAccum-=pipeInterval; spawnPipe(); }
   const pw=pipeW();
-  pipes.forEach(p=>p.x-=speed);
+  pipes.forEach(p=>p.x-=speed*dt);
   pipes = pipes.filter(p=>p.x>-pw-10);
   pipes.forEach(p=>{
     if(!p.passed && p.x+pw<bird.x){
@@ -328,14 +351,18 @@ function loop(){
       if(bird.y-bird.r<p.top || bird.y+bird.r>p.top+p.gap) gameOver();
     }
   });
-  particles.forEach(pt=>{pt.x+=pt.vx;pt.y+=pt.vy;pt.life--;});
+  particles.forEach(pt=>{pt.x+=pt.vx*dt;pt.y+=pt.vy*dt;pt.life-=dt;});
   particles=particles.filter(pt=>pt.life>0);
-  transformParticles.forEach(pt=>{pt.x+=pt.vx;pt.y+=pt.vy;pt.vx*=0.94;pt.vy*=0.94;pt.life--;});
+  transformParticles.forEach(pt=>{
+    pt.x+=pt.vx*dt; pt.y+=pt.vy*dt;
+    const damp=Math.pow(0.94, dt);
+    pt.vx*=damp; pt.vy*=damp; pt.life-=dt;
+  });
   transformParticles=transformParticles.filter(pt=>pt.life>0);
-  if(spinBoost>0) spinBoost-=0.6;
+  if(spinBoost>0) spinBoost-=0.6*dt;
   if(bird.y+bird.r>H-groundH()-4 || bird.y-bird.r<0) gameOver();
   draw();
-  requestAnimationFrame(loop);
+  if(state==='playing') requestAnimationFrame(loop);
 }
 function drawCloud(c){
   ctx.save();
@@ -374,7 +401,6 @@ function drawNyanBg(){
     ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2); ctx.fill();
   });
   ctx.globalAlpha=1;
-
   // компактный радужный след — по размеру птички, с лёгкой волной и искрами
   const stripes=['#FF5A5A','#FF9F4D','#FFE24D','#7BE36A','#5AB4FF','#B27BFF'];
   const trailH=bird.r*2.1;
@@ -382,7 +408,6 @@ function drawNyanBg(){
   const trailLen=Math.min(bird.x-14, W*0.32);
   const trailStartX=Math.max(0, bird.x-14-trailLen);
   const waveAmp=bird.r*0.18;
-
   ctx.save();
   const fade=ctx.createLinearGradient(trailStartX,0,bird.x-14,0);
   fade.addColorStop(0,'rgba(255,255,255,0)');
@@ -397,7 +422,6 @@ function drawNyanBg(){
   ctx.fillRect(trailStartX, bird.y-trailH/2-waveAmp, trailLen+14, trailH+waveAmp*2);
   ctx.globalCompositeOperation='source-over';
   ctx.restore();
-
   // искры вдоль следа
   for(let i=0;i<5;i++){
     const t=(Date.now()/300 + i*0.7) % 1;
@@ -467,7 +491,6 @@ function drawBird(){
     ctx.beginPath(); ctx.arc(bird.r*0.35,-bird.r*0.35,bird.r*0.3,0,Math.PI*2); ctx.fill();
     ctx.fillStyle=mode==='dark'?'#e04040':'#1E4635';
     ctx.beginPath(); ctx.arc(bird.r*0.45,-bird.r*0.35,bird.r*0.14,0,Math.PI*2); ctx.fill();
-
     // ---- мемные детали для постоянных скинов ----
     if(v.extra==='crow'){
       ctx.save(); ctx.globalAlpha=0.35;
@@ -552,10 +575,11 @@ function draw(){
     ctx.fillStyle='#fff';
     ctx.font='bold '+(H*0.14)+'px "Baloo 2", sans-serif';
     ctx.textAlign='center';
-    ctx.fillText(countdownVal>=0?countdownVal:'Лети!', W/2, H/2+20);
+    ctx.fillText(countdownVal>0?countdownVal:'Лети!', W/2, H/2+20);
   }
 }
 function gameOver(){
+  if(!alive) return;
   alive=false; state='over';
   const best=getBest();
   const wasNewBest = score>best;
@@ -567,18 +591,18 @@ function gameOver(){
   document.getElementById('overlay').classList.add('show');
 }
 function flap(){ if(state==='playing'){ bird.v=JUMP_R*H; } }
-canvas.addEventListener('touchstart',e=>{e.preventDefault();flap();},{passive:false});
-canvas.addEventListener('mousedown',flap);
+// ФИКС: на мобильных браузер шлёт mousedown следом за touchstart — гасим дубль
+let lastFlapTouchAt=0;
+canvas.addEventListener('touchstart',e=>{ e.preventDefault(); lastFlapTouchAt=Date.now(); flap(); },{passive:false});
+canvas.addEventListener('mousedown',()=>{ if(Date.now()-lastFlapTouchAt<700) return; flap(); });
 document.addEventListener('keydown',e=>{ if(e.code==='Space') flap(); });
 document.getElementById('restart').onclick=reset;
-
 // ---------- Пауза ----------
-let pausedFrom=null;
 document.getElementById('pauseBtn').onclick=()=>{
   if(state==='playing'){
-    pausedFrom='playing'; state='paused';
+    state='paused';
   } else if(state==='paused'){
-    state='countdown'; countdownVal=3; countdownTimer=0;
+    state='countdown'; countdownVal=3; countdownAccum=0; lastTime=0;
     requestAnimationFrame(loop);
   }
 };
@@ -592,10 +616,9 @@ function drawPauseOverlay(){
   ctx.font='bold '+(H*0.024)+'px "Nunito", sans-serif';
   ctx.fillText('Нажми на паузу ещё раз, чтобы продолжить', W/2, H/2+H*0.05);
 }
-
-function boot(){ loadUserData(()=>{ loadRecords(()=>{ reset(); }); }); }
-window.addEventListener('load', boot);
-if(document.readyState==='complete') boot();
+function boot(){ loadUserData().catch(()=>{}).then(()=>reset()); }
+if(document.readyState==='complete' || document.readyState==='interactive') boot();
+else window.addEventListener('DOMContentLoaded', boot);
 </script>
 </body>
 </html>
