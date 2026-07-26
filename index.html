@@ -21,9 +21,7 @@
     --ink: #1E4635;
     --ink-soft: #4C7767;
   }
-
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-
   html, body {
     margin: 0;
     padding: 0;
@@ -33,7 +31,6 @@
     background: linear-gradient(180deg, var(--sky-top) 0%, var(--sky-bottom) 55%, #FFF7E0 100%);
     overflow-x: hidden;
   }
-
   /* Плавающие частицы фона — как искры вокруг симов */
   .particle {
     position: fixed;
@@ -48,7 +45,9 @@
     90%  { opacity: 0.4; }
     100% { transform: translateY(-110vh) rotate(360deg); opacity: 0; }
   }
-
+  @media (prefers-reduced-motion: reduce) {
+    .particle { display: none; }
+  }
   .wrap {
     position: relative;
     z-index: 1;
@@ -57,7 +56,6 @@
     padding: 28px 18px 40px;
     min-height: 100vh;
   }
-
   /* Плюмбоб — сигнатурный элемент */
   .plumbob {
     width: 46px;
@@ -77,7 +75,6 @@
     0%, 100% { box-shadow: 0 10px 18px -6px rgba(53,197,122,0.55); }
     50%      { box-shadow: 0 22px 30px -8px rgba(53,197,122,0.75); }
   }
-
   .title {
     text-align: center;
     font-family: 'Baloo 2', sans-serif;
@@ -94,13 +91,11 @@
     font-weight: 600;
     margin: 0 0 26px;
   }
-
   .grid {
     display: grid;
     grid-template-columns: 1fr;
     gap: 16px;
   }
-
   .card {
     position: relative;
     display: flex;
@@ -123,17 +118,15 @@
   .card:nth-child(2) { animation-delay: 0.15s; }
   .card:nth-child(3) { animation-delay: 0.25s; }
   .card:nth-child(4) { animation-delay: 0.35s; }
-
+  .card:nth-child(5) { animation-delay: 0.45s; }
   @keyframes card-in {
     from { opacity: 0; transform: translateY(18px) scale(0.96); }
     to   { opacity: 1; transform: translateY(0) scale(1); }
   }
-
   .card:active {
     transform: translateY(4px) scale(0.98);
     box-shadow: 0 4px 0 rgba(0,0,0,0.05), 0 6px 14px -6px rgba(30,70,53,0.22);
   }
-
   .card.c-green  { border-color: rgba(53,197,122,0.0); }
   .card.c-green:hover  { border-color: var(--plumbob-green); }
   .card.c-blue:hover   { border-color: var(--sim-blue); }
@@ -142,7 +135,6 @@
   .card.c-orange:hover { border-color: var(--sim-yellow); }
   .card.c-teal:hover   { border-color: #2FAE9E; }
   .card.c-navy:hover   { border-color: #2C5F8A; }
-
   .icon-badge {
     flex: 0 0 auto;
     width: 56px;
@@ -157,14 +149,13 @@
   .card:nth-child(2) .icon-badge { animation-delay: 0.3s; }
   .card:nth-child(3) .icon-badge { animation-delay: 0.6s; }
   .card:nth-child(4) .icon-badge { animation-delay: 0.9s; }
-
+  .card:nth-child(5) .icon-badge { animation-delay: 1.2s; }
   @keyframes badge-wiggle {
     0%, 80%, 100% { transform: rotate(0deg); }
     85% { transform: rotate(-8deg); }
     92% { transform: rotate(8deg); }
     96% { transform: rotate(-4deg); }
   }
-
   .c-green  .icon-badge { background: linear-gradient(135deg, #BFF3D5, #7BE3A6); }
   .c-blue   .icon-badge { background: linear-gradient(135deg, #C9EBFB, #8FD6F5); }
   .c-purple .icon-badge { background: linear-gradient(135deg, #E4D6FA, #C8A9F0); }
@@ -172,7 +163,6 @@
   .c-orange .icon-badge { background: linear-gradient(135deg, #FFE9BF, #FFC94D); }
   .c-teal   .icon-badge { background: linear-gradient(135deg, #BFF0EA, #2FAE9E); }
   .c-navy   .icon-badge { background: linear-gradient(135deg, #BFD6EA, #2C5F8A); }
-
   .card-text { flex: 1 1 auto; min-width: 0; }
   .card-title {
     font-family: 'Baloo 2', sans-serif;
@@ -197,7 +187,6 @@
   .c-orange .card-tag { background: #FFF3D9; color: #B5680C; }
   .c-teal   .card-tag { background: #DFF7F3; color: #1E7A6E; }
   .c-navy   .card-tag { background: #E1EBF5; color: #2C5F8A; }
-
   .card-desc {
     font-size: 12.5px;
     color: var(--ink-soft);
@@ -205,7 +194,6 @@
     margin: 0;
     line-height: 1.35;
   }
-
   .arrow {
     flex: 0 0 auto;
     width: 30px;
@@ -218,7 +206,6 @@
     font-size: 15px;
     color: var(--ink-soft);
   }
-
   .footer-note {
     text-align: center;
     margin-top: 30px;
@@ -227,7 +214,6 @@
     opacity: 0.75;
     font-weight: 600;
   }
-
   .beta-banner {
     margin-top: 18px;
     background: linear-gradient(135deg, #FFF3D9, #FFE9BF);
@@ -259,12 +245,10 @@
 </style>
 </head>
 <body>
-
 <div class="wrap">
   <div class="plumbob"></div>
   <h1 class="title">Игровой уголок</h1>
   <p class="subtitle">Выбери, во что сыграем</p>
-
   <div class="grid">
     <a class="card c-green" data-url="https://mrkemmerling12-dev.github.io/sims-menu/flappybird.html">
       <div class="icon-badge">🐤</div>
@@ -275,7 +259,6 @@
       </div>
       <div class="arrow">▶</div>
     </a>
-
     <a class="card c-blue" data-url="https://mrkemmerling12-dev.github.io/sims-menu/tetris.html">
       <div class="icon-badge">🧱</div>
       <div class="card-text">
@@ -285,7 +268,6 @@
       </div>
       <div class="arrow">▶</div>
     </a>
-
     <a class="card c-purple" data-url="https://mrkemmerling12-dev.github.io/sims-menu/tictactoe.html">
       <div class="icon-badge">⭕</div>
       <div class="card-text">
@@ -295,7 +277,6 @@
       </div>
       <div class="arrow">▶</div>
     </a>
-
     <a class="card c-pink" data-url="https://mrkemmerling12-dev.github.io/sims-menu/snake.html">
       <div class="icon-badge">🐍</div>
       <div class="card-text">
@@ -305,10 +286,8 @@
       </div>
       <div class="arrow">▶</div>
     </a>
-
     <!-- Временно скрыто из меню (Ретро-Бегун и 2048) — файлы остаются на GitHub,
          вернём в меню, когда доделаем задуманные улучшения. -->
-
     <a class="card c-navy" data-url="https://mrkemmerling12-dev.github.io/sims-menu/battleship.html">
       <div class="icon-badge">🚢</div>
       <div class="card-text">
@@ -319,9 +298,7 @@
       <div class="arrow">▶</div>
     </a>
   </div>
-
   <p class="footer-note">Хорошего перерыва! 🌿</p>
-
   <div class="beta-banner">
     <span class="beta-emoji">🚧</span>
     <p class="beta-text">
@@ -329,7 +306,6 @@
       Если заметишь баг или есть идея, что улучшить — просто напиши об этом лично создателю бота 🙂
     </p>
   </div>
-
   <a href="https://t.me/SuperSexyChat_bot?start=donate" class="beta-banner" style="border-color:#F5AFC6;background:linear-gradient(135deg,#FDEAF0,#FCDCE7);text-decoration:none;">
     <span class="beta-emoji">💛</span>
     <p class="beta-text" style="color:#C2507A;">
@@ -337,7 +313,6 @@
     </p>
   </a>
 </div>
-
 <script>
   document.addEventListener("DOMContentLoaded", function() {
     // Проверяем наличие Telegram SDK
@@ -347,13 +322,34 @@
       tg.expand(); // Разворачиваем приложение на весь экран
     }
 
+    // ФИКС: стили .particle были в CSS, но сами частицы никто не создавал —
+    // теперь фоновые искры действительно появляются
+    (function spawnParticles(){
+      if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      const colors = ['#7BE3A6', '#8FD6F5', '#C8A9F0', '#F5AFC6', '#FFC94D'];
+      const count = 18;
+      const frag = document.createDocumentFragment();
+      for (let i = 0; i < count; i++) {
+        const p = document.createElement('div');
+        p.className = 'particle';
+        const size = 4 + Math.random() * 8;
+        p.style.width = size + 'px';
+        p.style.height = size + 'px';
+        p.style.background = colors[Math.floor(Math.random() * colors.length)];
+        p.style.left = (Math.random() * 100) + 'vw';
+        p.style.bottom = '-20px';
+        p.style.animationDuration = (11 + Math.random() * 12) + 's';
+        p.style.animationDelay = (-Math.random() * 16) + 's';
+        frag.appendChild(p);
+      }
+      document.body.appendChild(frag);
+    })();
+
     // Находим все карточки на странице
     const cards = document.querySelectorAll('.card');
-
     cards.forEach(card => {
       card.addEventListener('click', function(e) {
         e.preventDefault(); // Защита от стандартных переходов
-
         const url = this.getAttribute('data-url');
         if (url) {
           // Переходим на страницу игры прямо внутри Telegram, без внешнего браузера
@@ -363,6 +359,5 @@
     });
   });
 </script>
-
 </body>
 </html>
