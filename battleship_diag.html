@@ -884,23 +884,24 @@ document.getElementById('joinRoomBtn').onclick=()=>{
       return null;
     }
     setStatus('✅ ДИАГ: комната найдена, пробую занять место O...');
+    let txSeen=[];
     return ref.transaction(room=>{
+      txSeen.push(room===null?'null':(room===undefined?'undef':'есть players='+JSON.stringify(room&&room.players?Object.keys(room.players):null)));
       if(!room) return;                                                        // комната исчезла
       if(room.players && room.players.X && room.players.X.id===ME.id) return;  // это твоя же комната
       if(room.players && room.players.O && room.players.O.id!==ME.id) return;  // место занято
       room.players = room.players || {};
       room.players.O = {id:ME.id,name:ME.name,ready:false,board:emptyBoard(),connected:true};
       return room;
-    });
+    }, undefined, false).then(r=>{ window.__txSeen=txSeen; return r; });
   }).then(res=>{
     if(!res) return;
     if(!res.committed){
       const d = res.snapshot && res.snapshot.val();
       const mine = d && d.players && d.players.X && d.players.X.id===ME.id;
-      setStatus(!d ? '❌ ДИАГ: комната пропала' : (mine ? '❌ ДИАГ: это ТВОЯ комната (тот же id)' : '❌ ДИАГ: место O занято'));
-      alert(!d ? 'Комната пропала' : (mine
-        ? 'Это твоя же комната! Твой id: '+ME.id+'\nВойти в свою комнату нельзя — нужен ДРУГОЙ аккаунт/устройство.'
-        : 'Место уже занято другим игроком.'));
+      const seen = (window.__txSeen||[]).join(' | ');
+      setStatus('❌ ДИАГ tx: '+seen);
+      alert('Транзакция не закоммитилась.\n\nЧто приходило в транзакцию:\n'+seen+'\n\nИтоговый снапшот пустой? '+(!d)+'\nМой id: '+ME.id);
       return;
     }
     mySymbol='O';
