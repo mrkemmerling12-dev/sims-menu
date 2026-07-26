@@ -820,8 +820,11 @@ function genRoomCode(){
   let code=''; for(let i=0;i<5;i++) code+=chars[Math.floor(Math.random()*chars.length)];
   return code;
 }
-document.getElementById('createRoomBtn').onclick=()=>{
+document.getElementById('createRoomBtn').onclick=async ()=>{
   if(!fbReady){ setStatus('Онлайн недоступен 😕'); return; }
+  setStatus('Подключаюсь к серверу...', 'Подключение ⏳', 'theirs');
+  const connected=await waitForConnection();
+  if(!connected){ setStatus('Нет связи с сервером 😕 Проверь интернет'); return; }
   const code=genRoomCode();
   mySymbol='X';
   const initial={
@@ -853,14 +856,35 @@ document.getElementById('copyCodeBtn').onclick=()=>{
     b.textContent='Скопировано ✓'; setTimeout(()=>b.textContent='Скопировать код',1500);
   }).catch(()=>{});
 };
-// ФИКС: вход в комнату через транзакцию — слот второго игрока достаётся ровно одному,
-// даже если код одновременно ввели двое
-document.getElementById('joinRoomBtn').onclick=()=>{
+// Ждём, пока установится РЕАЛЬНОЕ соединение с базой.
+// Без этого транзакция может стартовать до подключения, получить null
+// («комната пропала»), хотя комната в базе есть.
+function waitForConnection(timeoutMs=5000){
+  return new Promise(resolve=>{
+    if(!fbReady){ resolve(false); return; }
+    const cref=db.ref('.info/connected');
+    let done=false;
+    const finish=(ok)=>{ if(done) return; done=true; cref.off('value', cb); resolve(ok); };
+    const cb=cref.on('value', s=>{ if(s.val()===true) finish(true); });
+    setTimeout(()=>finish(false), timeoutMs); // не зависаем навсегда
+  });
+}
+
+// Вход в комнату через транзакцию — слот второго игрока достаётся ровно одному,
+// даже если код одновременно ввели двое.
+document.getElementById('joinRoomBtn').onclick=async ()=>{
   if(!fbReady){ setStatus('Онлайн недоступен 😕'); return; }
   const code=document.getElementById('joinCodeInput').value.trim().toUpperCase();
   if(code.length<4){ setStatus('Введи код комнаты'); return; }
+
+  setStatus('Подключаюсь к серверу...', 'Подключение ⏳', 'theirs');
+  const connected=await waitForConnection();
+  if(!connected){
+    setStatus('Нет связи с сервером 😕 Проверь интернет и попробуй ещё раз');
+    return;
+  }
+
   const ref=db.ref('rooms/'+code);
-  // сначала читаем — так транзакция не сработает вхолостую на пустом локальном кэше
   ref.get().then(snap=>{
     if(!snap.exists()){ setStatus('Комната не найдена 😕'); return null; }
     return ref.transaction(room=>{
