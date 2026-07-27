@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Шашки</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Russo+One&family=Rubik:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --space:#111d2d; --space-deep:#08111d; --ink:#14202b;
+  --cream:#fff5cf; --paper:#f6e8bd; --red:#d8422c;
+  --gold:#f3bc37; --cyan:#55d8df; --green:#62bc76; --green-dark:#306754;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;}
+html,body{
+  margin:0;padding:0;height:100%;width:100%;
+  font-family:'Rubik',sans-serif;color:var(--cream);
+  touch-action:none;overscroll-behavior:none;overflow:hidden;
+  background-color:var(--space-deep);
+  background-image:
+    radial-gradient(circle at 8% 12%,#f6e8bd 0 1px,transparent 1.8px),
+    radial-gradient(circle at 82% 8%,#f3bc37 0 1.5px,transparent 2.2px),
+    radial-gradient(circle at 13% 45%,#69dae0 0 1px,transparent 1.8px),
+    radial-gradient(circle at 91% 52%,#f6e8bd 0 1px,transparent 1.8px),
+    radial-gradient(circle at 25% 81%,#f3bc37 0 1.5px,transparent 2.2px),
+    radial-gradient(circle at 72% 87%,#69dae0 0 1px,transparent 1.8px),
+    linear-gradient(165deg,#1b3546 0%,var(--space) 52%,var(--space-deep) 100%);
+  background-size:145px 155px,177px 173px,211px 218px,189px 199px,253px 239px,181px 201px,auto;
+}
+body::before{
+  content:"";position:fixed;inset:0;z-index:0;pointer-events:none;opacity:0.18;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.52'/%3E%3C/svg%3E");
+}
+.wrap{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:1;padding:64px 12px 12px;}
+.icon-btn{
+  position:fixed;width:42px;height:42px;border-radius:50%;
+  background:rgba(20,32,43,0.88);
+  display:flex;align-items:center;justify-content:center;
+  text-decoration:none;z-index:20;
+  border:3px solid var(--ink);
+  box-shadow:0 4px 0 var(--ink),0 6px 14px rgba(0,0,0,0.45);
+  transition:transform 0.12s;
+}
+.icon-btn:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ink);}
+.icon-btn svg{width:20px;height:20px;}
+.back-btn{top:12px;left:12px;}
+.info-btn{top:12px;right:12px;}
+/* HUD */
+.hud{
+  position:fixed;top:14px;left:64px;right:64px;
+  display:flex;justify-content:space-between;align-items:center;z-index:20;
+}
+.turn-pill{
+  font-family:'Russo One',sans-serif;font-size:12px;
+  padding:5px 14px;border-radius:20px;
+  border:2px solid var(--ink);box-shadow:0 3px 0 var(--ink);
+  transition:all 0.2s;
+}
+.turn-pill.red-turn{background:#d8422c;color:#fff;}
+.turn-pill.white-turn{background:var(--paper);color:var(--ink);}
+.score-pill{
+  font-family:'Russo One',sans-serif;font-size:12px;
+  background:rgba(20,32,43,0.72);color:var(--cream);
+  padding:5px 12px;border-radius:20px;
+  border:2px solid rgba(255,245,207,0.3);
+}
+/* Доска */
+.board-wrap{position:relative;}
+canvas#board{display:block;border-radius:8px;box-shadow:0 8px 0 var(--ink),0 14px 30px rgba(0,0,0,0.5);}
+/* Модалка */
+.overlay{position:fixed;inset:0;background:rgba(8,17,29,0.75);display:none;align-items:center;justify-content:center;z-index:30;padding:20px;}
+.overlay.show{display:flex;}
+.modal{
+  background:var(--paper);color:var(--ink);
+  border:3px solid var(--ink);border-radius:12px 20px 13px 18px;
+  padding:26px 24px;text-align:center;max-width:300px;width:100%;
+  box-shadow:0 6px 0 var(--ink),0 14px 30px rgba(0,0,0,0.5);position:relative;
+}
+.modal h2{font-family:'Russo One',sans-serif;margin:0 0 8px;font-size:22px;color:var(--red);-webkit-text-stroke:1px var(--ink);}
+.modal p{font-weight:600;color:#49515a;margin:0 0 16px;font-size:14px;}
+.btn-main{
+  background:var(--gold);border:3px solid var(--ink);color:var(--ink);
+  font-family:'Russo One',sans-serif;font-size:15px;
+  padding:11px 26px;border-radius:10px 18px 11px 16px;
+  box-shadow:0 5px 0 var(--ink);cursor:pointer;
+}
+.btn-main:active{transform:translateY(4px);box-shadow:0 1px 0 var(--ink);}
+.btn-secondary{
+  background:rgba(20,32,43,0.12);color:var(--ink);
+  border:2px solid rgba(20,32,43,0.3);
+  font-family:'Rubik',sans-serif;font-weight:600;font-size:13px;
+  padding:9px 18px;border-radius:14px;cursor:pointer;margin-left:8px;
+}
+.close-x{position:absolute;top:12px;right:16px;font-size:20px;color:var(--ink);background:none;border:none;cursor:pointer;font-weight:700;}
+/* Инфо */
+.info-body{text-align:left;max-height:62vh;overflow-y:auto;}
+.info-body h3{font-family:'Russo One',sans-serif;font-size:13px;color:var(--ink);margin:12px 0 4px;border-bottom:2px solid rgba(20,32,43,0.12);padding-bottom:2px;}
+.info-body h3:first-child{margin-top:0;}
+.info-body p,.info-body li{font-size:12.5px;color:#3a4a58;line-height:1.5;margin:2px 0;}
+.info-body ul{margin:4px 0 4px 14px;padding:0;}
+
+.mode-bar{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);display:flex;gap:8px;z-index:20;}
+.mode-btn{font-family:'Russo One',sans-serif;font-size:13px;padding:9px 18px;border-radius:10px 18px 11px 16px;border:3px solid var(--ink);box-shadow:0 4px 0 var(--ink);cursor:pointer;transition:transform .12s;}
+.mode-btn:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ink);}
+.mode-btn.active-bot{background:var(--gold);color:var(--ink);}
+.mode-btn.active-online{background:var(--green);color:var(--ink);}
+.mode-btn.inactive{background:rgba(20,32,43,0.72);color:var(--cream);border-color:rgba(255,245,207,0.3);box-shadow:none;}
+.online-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(98,188,118,0.18);color:#8ff5a6;border:1.5px solid var(--green);font-weight:700;font-size:11px;padding:3px 10px;border-radius:14px;margin-bottom:6px;}
+/* реакции */
+.react-bar{display:none;justify-content:center;gap:6px;flex-wrap:wrap;position:fixed;bottom:70px;left:50%;transform:translateX(-50%);z-index:21;}
+.react-bar.show{display:flex;}
+.react-btn{width:38px;height:38px;border-radius:50%;border:2px solid var(--ink);background:var(--paper);font-size:19px;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 0 var(--ink);transition:transform .12s;}
+.react-btn:active{transform:scale(0.85);}
+.react-btn:disabled{opacity:0.4;}
+.react-layer{position:fixed;left:0;right:0;bottom:0;height:60vh;pointer-events:none;z-index:40;overflow:hidden;}
+.react-fly{position:absolute;bottom:0;font-size:38px;animation:react-rise 2.4s ease-out forwards;}
+@keyframes react-rise{0%{transform:translateY(0) scale(0.4);opacity:0;}15%{transform:translateY(-8vh) scale(1.1);opacity:1;}75%{opacity:1;}100%{transform:translateY(-58vh) scale(0.9);opacity:0;}}
+/* код комнаты */
+.room-code-display{font-family:'Russo One',sans-serif;font-size:28px;letter-spacing:5px;color:var(--ink);background:rgba(243,188,55,0.25);border:2px solid var(--ink);border-radius:10px;padding:10px;margin-bottom:10px;}
+.modal input{width:100%;padding:11px;border-radius:10px;border:2px solid var(--ink);font-family:'Russo One',sans-serif;font-size:17px;text-align:center;text-transform:uppercase;letter-spacing:3px;margin-bottom:10px;background:rgba(255,245,207,0.9);color:var(--ink);}
+@media (prefers-reduced-motion:reduce){*{animation-duration:0.01ms!important;transition-duration:0.01ms!important;}}
+</style>
+</head>
+<body>
+<a class="icon-btn back-btn" href="index.html" aria-label="Назад">
+  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <path d="M60 20 L32 50 L60 80" fill="none" stroke="var(--cream)" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+</a>
+<button class="icon-btn info-btn" id="infoBtn" aria-label="Правила">
+  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <text x="50" y="72" text-anchor="middle" font-size="68" font-family="serif" font-weight="bold" fill="var(--cream)">?</text>
+  </svg>
+</button>
+<div class="hud">
+  <div class="turn-pill" id="turnPill">Ход: 🔴</div>
+  <div class="score-pill" id="scorePill">🔴 12 · ⚪ 12</div>
+</div>
+<div class="react-layer" id="reactLayer"></div>
+<div id="onlineBadge" style="position:fixed;top:64px;left:0;right:0;text-align:center;z-index:19;"></div>
+<div class="mode-bar">
+  <button class="mode-btn active-bot" id="modeBotBtn">🤖 С ботом</button>
+  <button class="mode-btn inactive" id="modeOnlineBtn">👥 Онлайн</button>
+</div>
+<div class="react-bar" id="reactBar"></div>
+<div class="wrap">
+  <div class="board-wrap"><canvas id="board"></canvas></div>
+</div>
+
+
+<!-- Онлайн оверлей -->
+<div class="overlay" id="onlineOverlay">
+  <div class="modal">
+    <button class="close-x" id="closeOnlineOverlay">✕</button>
+    <h2>Шашки онлайн</h2>
+    <p style="color:#49515a;font-weight:600;font-size:13px;margin-bottom:12px;">Создай комнату и скинь код другу, или введи его код</p>
+    <div style="display:flex;justify-content:center;gap:8px;margin-bottom:12px;">
+      <button class="btn-main" id="createRoomBtn">Создать комнату</button>
+    </div>
+    <p style="color:#49515a;font-weight:600;font-size:13px;margin:8px 0 6px;">Или введи код:</p>
+    <input type="text" id="joinCodeInput" placeholder="КОД" maxlength="5">
+    <div style="display:flex;justify-content:center;">
+      <button class="btn-main" id="joinRoomBtn">Войти</button>
+    </div>
+  </div>
+</div>
+<!-- Ожидание -->
+<div class="overlay" id="waitingOverlay">
+  <div class="modal">
+    <h2>Комната создана! ♟️</h2>
+    <p style="color:#49515a;font-weight:600;font-size:13px;">Отправь этот код другу</p>
+    <div class="room-code-display" id="roomCodeDisplay">-----</div>
+    <div style="display:flex;justify-content:center;gap:8px;margin-bottom:10px;">
+      <button class="btn-main" id="copyCodeBtn">Скопировать</button>
+      <button class="btn-secondary" id="shareCodeBtn">📨 Другу</button>
+    </div>
+    <p id="waitingStatus" style="color:#49515a;font-weight:600;font-size:13px;">⏳ Ждём соперника...</p>
+    <div style="display:flex;justify-content:center;margin-top:10px;">
+      <button class="btn-secondary" id="cancelRoomBtn">Отменить</button>
+    </div>
+  </div>
+</div>
+<!-- Конец игры -->
+<div class="overlay" id="endOverlay">
+  <div class="modal">
+    <h2 id="endTitle">Победа!</h2>
+    <p id="endText">Красные победили!</p>
+    <button class="btn-main" id="restartBtn">Сыграть ещё</button>
+    <button class="btn-secondary" id="restartBtn2">Заново</button>
+  </div>
+</div>
+
+<!-- Правила -->
+<div class="overlay" id="infoOverlay">
+  <div class="modal" style="max-width:340px;">
+    <button class="close-x" id="closeInfo">✕</button>
+    <h2>Правила шашек</h2>
+    <div class="info-body">
+      <h3>🎯 Цель</h3>
+      <p>Побить все шашки соперника или лишить его ходов.</p>
+      <h3>♟️ Ход</h3>
+      <p>Простая шашка ходит по диагонали на 1 клетку вперёд.</p>
+      <h3>💥 Взятие</h3>
+      <p>Перепрыгни через шашку соперника на свободную клетку за ней. <b>Взятие обязательно!</b> Если можно бить — нужно бить.</p>
+      <h3>⛓️ Серия</h3>
+      <p>После взятия, если можно бить ещё — продолжай той же шашкой.</p>
+      <h3>👑 Дамка</h3>
+      <p>Дошла до последнего ряда — становится дамкой. Дамка ходит на любое расстояние по диагонали в любую сторону и бьёт так же.</p>
+      <h3>🤖 Бот</h3>
+      <p>Белыми играет бот. Он всегда выбирает лучший ход.</p>
+      <h3>👥 Онлайн</h3>
+      <p>Нажми «Онлайн», создай комнату и отправь код другу. Красные ходят первыми — это ты. Белые — соперник.</p>
+      <h3>😂 Реакции</h3>
+      <p>В онлайне можно отправлять эмодзи — они летят у обоих игроков.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+if(window.Telegram&&window.Telegram.WebApp){
+  const tg=window.Telegram.WebApp;
+  tg.ready();tg.expand();
+  if(typeof tg.disableVerticalSwipes==='function') tg.disableVerticalSwipes();
+}
+
+const canvas=document.getElementById('board');
+const ctx=canvas.getContext('2d');
+const N=8;
+let SZ=44; // размер клетки, пересчитывается
+
+// --- Цвета ---
+const C={
+  dark:'#1e3a2f',       // тёмная клетка
+  light:'#c8a96e',      // светлая клетка
+  darkHover:'#2e5040',
+  red:'#d8422c',        // шашка игрока
+  redLight:'#f07060',
+  redKing:'#ff9f37',    // дамка игрока
+  white:'#f0e8d0',      // шашка бота
+  whiteLight:'#ffffff',
+  whiteKing:'#e0d090',  // дамка бота
+  select:'rgba(243,188,55,0.7)',
+  move:'rgba(85,216,223,0.55)',
+  capture:'rgba(216,66,44,0.45)',
+  ink:'#14202b',
+};
+
+// --- Состояние ---
+// board[r][c]: 0=пусто, 1=красная, 2=белая, 3=красная дамка, 4=белая дамка
+let board, selected, validMoves, currentTurn, gameOver, mustCapture, chainPiece;
+let animPieces=[]; // анимация взятия
+
+function initBoard(){
+  board=Array.from({length:N},()=>Array(N).fill(0));
+  for(let r=0;r<3;r++) for(let c=0;c<N;c++) if((r+c)%2===1) board[r][c]=2; // белые сверху
+  for(let r=5;r<8;r++) for(let c=0;c<N;c++) if((r+c)%2===1) board[r][c]=1; // красные снизу
+  selected=null; validMoves=[]; currentTurn=1; gameOver=false; mustCapture=false; chainPiece=null; animPieces=[];
+}
+
+function resize(){
+  const wrap=document.querySelector('.wrap');
+  const maxW=Math.min(wrap.clientWidth, wrap.clientHeight)-8;
+  SZ=Math.floor(maxW/N);
+  const px=SZ*N;
+  const dpr=Math.min(window.devicePixelRatio||1,2);
+  canvas.style.width=px+'px'; canvas.style.height=px+'px';
+  canvas.width=px*dpr; canvas.height=px*dpr;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+window.addEventListener('resize',()=>{resize();draw();});
+
+// --- Логика ходов ---
+function isRed(v){return v===1||v===3;}
+function isWhite(v){return v===2||v===4;}
+function isKing(v){return v===3||v===4;}
+function owns(v,turn){return turn===1?isRed(v):isWhite(v);}
+function opponent(v,turn){return turn===1?isWhite(v):isRed(v);}
+
+function inBounds(r,c){return r>=0&&r<N&&c>=0&&c<N;}
+
+// Возвращает все возможные взятия для одной шашки
+function getCapturesFor(r,c,b){
+  const v=b[r][c];
+  const king=isKing(v);
+  const dirs=king?[[-1,-1],[-1,1],[1,-1],[1,1]]:(isRed(v)?[[-1,-1],[-1,1]]:[[1,-1],[1,1]]);
+  // дамка смотрит во все 4 стороны
+  const allDirs=[[-1,-1],[-1,1],[1,-1],[1,1]];
+  const useDirs=king?allDirs:dirs;
+  const result=[];
+  for(const [dr,dc] of useDirs){
+    if(king){
+      // дамка скользит по диагонали, находит первую шашку соперника
+      let rr=r+dr,cc=c+dc;
+      let found=null;
+      while(inBounds(rr,cc)){
+        if(b[rr][cc]!==0){
+          if(opponent(b[rr][cc],isRed(v)?1:2)) found={r:rr,c:cc};
+          break;
+        }
+        rr+=dr;cc+=dc;
+      }
+      if(found){
+        let lr=found.r+dr,lc=found.c+dc;
+        while(inBounds(lr,lc)&&b[lr][lc]===0){
+          result.push({fromR:r,fromC:c,toR:lr,toC:lc,capR:found.r,capC:found.c});
+          lr+=dr;lc+=dc;
+        }
+      }
+    } else {
+      // простая: через одну клетку
+      const mr=r+dr,mc=c+dc;
+      const tr=r+dr*2,tc=c+dc*2;
+      if(inBounds(tr,tc)&&b[tr][tc]===0&&inBounds(mr,mc)&&opponent(b[mr][mc],isRed(v)?1:2)){
+        result.push({fromR:r,fromC:c,toR:tr,toC:tc,capR:mr,capC:mc});
+      }
+    }
+  }
+  return result;
+}
+
+// Все возможные взятия для игрока
+function getAllCaptures(turn,b){
+  const res=[];
+  for(let r=0;r<N;r++) for(let c=0;c<N;c++)
+    if(b[r][c]!==0&&owns(b[r][c],turn)) res.push(...getCapturesFor(r,c,b));
+  return res;
+}
+
+// Простые ходы (без взятия) для одной шашки
+function getSimpleFor(r,c,b){
+  const v=b[r][c];
+  const king=isKing(v);
+  const dirs=king?[[-1,-1],[-1,1],[1,-1],[1,1]]:(isRed(v)?[[-1,-1],[-1,1]]:[[1,-1],[1,1]]);
+  const res=[];
+  for(const [dr,dc] of dirs){
+    if(king){
+      let rr=r+dr,cc=c+dc;
+      while(inBounds(rr,cc)&&b[rr][cc]===0){
+        res.push({fromR:r,fromC:c,toR:rr,toC:cc,capR:null,capC:null});
+        rr+=dr;cc+=dc;
+      }
+    } else {
+      const tr=r+dr,tc=c+dc;
+      if(inBounds(tr,tc)&&b[tr][tc]===0) res.push({fromR:r,fromC:c,toR:tr,toC:tc,capR:null,capC:null});
+    }
+  }
+  return res;
+}
+
+function getValidMoves(turn,b,forceR,forceC){
+  const caps=forceR!=null?getCapturesFor(forceR,forceC,b):getAllCaptures(turn,b);
+  if(caps.length) return caps;
+  if(forceR!=null) return []; // в цепи нет хода — конец цепи
+  const res=[];
+  for(let r=0;r<N;r++) for(let c=0;c<N;c++)
+    if(b[r][c]!==0&&owns(b[r][c],turn)) res.push(...getSimpleFor(r,c,b));
+  return res;
+}
+
+function applyMove(m,b){
+  const nb=b.map(row=>row.slice());
+  nb[m.toR][m.toC]=nb[m.fromR][m.fromC];
+  nb[m.fromR][m.fromC]=0;
+  if(m.capR!=null) nb[m.capR][m.capC]=0;
+  // дамка
+  if(isRed(nb[m.toR][m.toC])&&m.toR===0) nb[m.toR][m.toC]=3;
+  if(isWhite(nb[m.toR][m.toC])&&m.toR===7) nb[m.toR][m.toC]=4;
+  return nb;
+}
+
+function countPieces(b){
+  let r=0,w=0;
+  for(let i=0;i<N;i++) for(let j=0;j<N;j++){
+    if(isRed(b[i][j])) r++;
+    if(isWhite(b[i][j])) w++;
+  }
+  return{r,w};
+}
+
+function updateHUD(){
+  const{r,w}=countPieces(board);
+  document.getElementById('scorePill').textContent=`🔴 ${r} · ⚪ ${w}`;
+  const pill=document.getElementById('turnPill');
+  if(currentTurn===1){pill.textContent='Ход: 🔴 Ты';pill.className='turn-pill red-turn';}
+  else{pill.textContent='Ход: ⚪ Бот';pill.className='turn-pill white-turn';}
+}
+
+// --- Отрисовка ---
+function drawPiece(r,c,v,alpha){
+  const x=c*SZ+SZ/2, y=r*SZ+SZ/2;
+  const rad=SZ*0.38;
+  ctx.save();
+  if(alpha!=null) ctx.globalAlpha=alpha;
+  const king=isKing(v);
+  const mainCol=isRed(v)?(king?C.redKing:C.red):(king?C.whiteKing:C.white);
+  const lightCol=isRed(v)?C.redLight:C.whiteLight;
+  // тень
+  ctx.beginPath();ctx.arc(x+2,y+3,rad,0,Math.PI*2);
+  ctx.fillStyle='rgba(0,0,0,0.35)';ctx.fill();
+  // тело
+  const grad=ctx.createRadialGradient(x-rad*0.3,y-rad*0.3,rad*0.1,x,y,rad);
+  grad.addColorStop(0,lightCol);grad.addColorStop(1,mainCol);
+  ctx.beginPath();ctx.arc(x,y,rad,0,Math.PI*2);
+  ctx.fillStyle=grad;ctx.fill();
+  // обводка
+  ctx.strokeStyle=C.ink;ctx.lineWidth=2;ctx.stroke();
+  // блик
+  ctx.beginPath();ctx.arc(x-rad*0.28,y-rad*0.28,rad*0.22,0,Math.PI*2);
+  ctx.fillStyle='rgba(255,255,255,0.45)';ctx.fill();
+  // дамка — корона
+  if(king){
+    ctx.font=`bold ${Math.round(SZ*0.38)}px serif`;
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillStyle=isRed(v)?'#fff5cf':'#14202b';
+    ctx.fillText('♛',x,y+1);
+  }
+  ctx.restore();
+}
+
+function draw(){
+  const px=SZ*N;
+  ctx.clearRect(0,0,px,px);
+  // клетки
+  for(let r=0;r<N;r++) for(let c=0;c<N;c++){
+    ctx.fillStyle=(r+c)%2===0?C.light:C.dark;
+    ctx.fillRect(c*SZ,r*SZ,SZ,SZ);
+  }
+  // подсветка выбранной
+  if(selected){
+    ctx.fillStyle=C.select;
+    ctx.fillRect(selected.c*SZ,selected.r*SZ,SZ,SZ);
+  }
+  // доступные ходы
+  for(const m of validMoves){
+    if(selected&&m.fromR===selected.r&&m.fromC===selected.c){
+      ctx.fillStyle=m.capR!=null?C.capture:C.move;
+      ctx.fillRect(m.toC*SZ,m.toR*SZ,SZ,SZ);
+      // точка в центре
+      ctx.beginPath();ctx.arc(m.toC*SZ+SZ/2,m.toR*SZ+SZ/2,SZ*0.14,0,Math.PI*2);
+      ctx.fillStyle='rgba(255,255,255,0.7)';ctx.fill();
+    }
+  }
+  // шашки
+  for(let r=0;r<N;r++) for(let c=0;c<N;c++)
+    if(board[r][c]) drawPiece(r,c,board[r][c],null);
+  // анимированные взятые (тают)
+  for(const a of animPieces) drawPiece(a.r,a.c,a.v,a.alpha);
+}
+
+// --- Игровой клик ---
+canvas.addEventListener('click',e=>{
+  if(gameOver) return;
+  if(onlineMode&&!isMyOnlineTurn()) return;
+  if(!onlineMode&&currentTurn!==1) return;
+  const rect=canvas.getBoundingClientRect();
+  const scaleX=SZ*N/rect.width;
+  const cx=Math.floor((e.clientX-rect.left)*scaleX/SZ);
+  const cr=Math.floor((e.clientY-rect.top)*scaleX/SZ);
+  if(!inBounds(cr,cx)) return;
+
+  const moves=validMoves;
+
+  // клик по своей шашке
+  if(board[cr][cx]&&owns(board[cr][cx],1)&&(!chainPiece||(chainPiece.r===cr&&chainPiece.c===cx))){
+    const hasMoves=moves.some(m=>m.fromR===cr&&m.fromC===cx);
+    if(hasMoves){selected={r:cr,c:cx};draw();return;}
+  }
+
+  // клик по клетке хода
+  if(selected){
+    const m=moves.find(m=>m.fromR===selected.r&&m.fromC===selected.c&&m.toR===cr&&m.toC===cx);
+    if(m){
+      executeMove(m);
+      return;
+    }
+  }
+  // клик по другой своей шашке (смена выбора)
+  if(board[cr][cx]&&owns(board[cr][cx],1)&&!chainPiece){
+    const hasMoves=moves.some(m=>m.fromR===cr&&m.fromC===cx);
+    if(hasMoves){selected={r:cr,c:cx};draw();}
+  }
+});
+
+function executeMove(m){
+  if(onlineMode&&!isMyOnlineTurn()){return;}
+  if(m.capR!=null){
+    animPieces.push({r:m.capR,c:m.capC,v:board[m.capR][m.capC],alpha:1});
+    fadeOut();
+  }
+  board=applyMove(m,board);
+  haptic(m.capR!=null?'hit':'light');
+  // цепное взятие?
+  if(m.capR!=null){
+    const chain=getCapturesFor(m.toR,m.toC,board);
+    // если стала дамкой — цепь прерывается (по правилам)
+    const becameKing=(isRed(board[m.toR][m.toC])&&m.toR===0)||(isWhite(board[m.toR][m.toC])&&m.toR===7);
+    if(chain.length&&!becameKing){
+      chainPiece={r:m.toR,c:m.toC};
+      selected={r:m.toR,c:m.toC};
+      validMoves=chain;
+      updateHUD();draw();return;
+    }
+  }
+  endTurn();
+}
+
+function endTurn(){
+  chainPiece=null;selected=null;
+  if(onlineMode){
+    const nextColor=currentTurn===1?'white':'red';
+    sendOnlineMove(board,nextColor);
+    currentTurn=currentTurn===1?2:1;
+    validMoves=[];// ждём ответа соперника через Firebase
+    updateHUD();draw();
+    return;
+  }
+  currentTurn=currentTurn===1?2:1;
+  const moves=getValidMoves(currentTurn,board,null,null);
+  if(!moves.length){
+    showEnd(currentTurn===1?'⚪ Бот победил!':'🔴 Ты победил!');
+    return;
+  }
+  validMoves=moves;
+  updateHUD();draw();
+  if(currentTurn===2) setTimeout(botMove,480);
+}
+
+// --- Бот (минимакс) ---
+function evaluate(b){
+  let score=0;
+  for(let r=0;r<N;r++) for(let c=0;c<N;c++){
+    const v=b[r][c];
+    if(v===1) score-=(1+(7-r)*0.05);
+    if(v===3) score-=3.2;
+    if(v===2) score+=(1+r*0.05);
+    if(v===4) score+=3.2;
+  }
+  return score;
+}
+
+function minimax(b,depth,alpha,beta,maximizing){
+  const turn=maximizing?2:1;
+  const moves=getValidMoves(turn,b,null,null);
+  if(depth===0||!moves.length) return evaluate(b);
+  if(maximizing){
+    let best=-Infinity;
+    for(const m of moves){
+      const nb=applyMove(m,b);
+      // цепь для бота (упрощённо — один уровень)
+      best=Math.max(best,minimax(nb,depth-1,alpha,beta,false));
+      alpha=Math.max(alpha,best);
+      if(beta<=alpha) break;
+    }
+    return best;
+  } else {
+    let best=Infinity;
+    for(const m of moves){
+      const nb=applyMove(m,b);
+      best=Math.min(best,minimax(nb,depth-1,alpha,beta,true));
+      beta=Math.min(beta,best);
+      if(beta<=alpha) break;
+    }
+    return best;
+  }
+}
+
+function botMove(){
+  if(gameOver) return;
+  const moves=getValidMoves(2,board,null,null);
+  if(!moves.length){showEnd('🔴 Ты победил!');return;}
+  let best=-Infinity,bestMove=moves[0];
+  const depth=4;
+  for(const m of moves){
+    const nb=applyMove(m,board);
+    const score=minimax(nb,depth-1,-Infinity,Infinity,false);
+    if(score>best){best=score;bestMove=m;}
+  }
+  // бот бьёт цепью
+  let b=board;
+  let m=bestMove;
+  while(true){
+    if(m.capR!=null) animPieces.push({r:m.capR,c:m.capC,v:b[m.capR][m.capC],alpha:1});
+    b=applyMove(m,b);
+    haptic('light');
+    const becameKing=(isWhite(b[m.toR][m.toC])&&m.toR===7);
+    if(m.capR!=null&&!becameKing){
+      const chain=getCapturesFor(m.toR,m.toC,b);
+      if(chain.length){
+        // жадно бьём цепью
+        m=chain[Math.floor(Math.random()*chain.length)];
+        continue;
+      }
+    }
+    break;
+  }
+  board=b;
+  chainPiece=null;selected=null;
+  currentTurn=1;
+  const playerMoves=getValidMoves(1,board,null,null);
+  if(!playerMoves.length){showEnd('⚪ Бот победил!');return;}
+  validMoves=playerMoves;
+  updateHUD();draw();
+}
+
+// --- Анимация взятия ---
+function fadeOut(){
+  let step=0;
+  const timer=setInterval(()=>{
+    step++;
+    animPieces.forEach(a=>a.alpha=Math.max(0,1-step/8));
+    draw();
+    if(step>=8){clearInterval(timer);animPieces=[];}
+  },30);
+}
+
+// --- Конец игры ---
+function showEnd(text){
+  gameOver=true;
+  document.getElementById('endTitle').textContent=text.includes('Ты')?'Победа! 🏆':'Поражение 💥';
+  document.getElementById('endText').textContent=text;
+  document.getElementById('endOverlay').classList.add('show');
+}
+
+function haptic(type){
+  try{
+    const h=window.Telegram&&window.Telegram.WebApp&&window.Telegram.WebApp.HapticFeedback;
+    if(!h) return;
+    if(type==='hit') h.impactOccurred('medium');
+    else h.impactOccurred('light');
+  }catch(e){}
+}
+
+// --- Управление ---
+
+// ── Firebase ──
+const firebaseConfig={apiKey:"AIzaSyCrJMG_08oGzYacC317lMYkWTyIiS0IHFA",authDomain:"sims-menu-games-2.firebaseapp.com",databaseURL:"https://sims-menu-games-2-default-rtdb.europe-west1.firebasedatabase.app",projectId:"sims-menu-games-2",storageBucket:"sims-menu-games-2.firebasestorage.app",messagingSenderId:"207186943278",appId:"1:207186943278:web:2214b83e6218b86baaaebf"};
+let db=null,fbReady=false;
+try{firebase.initializeApp(firebaseConfig);db=firebase.database();fbReady=true;}catch(e){console.error(e);}
+function getMe(){
+  try{const u=window.Telegram&&window.Telegram.WebApp&&window.Telegram.WebApp.initDataUnsafe&&window.Telegram.WebApp.initDataUnsafe.user;if(u)return{id:String(u.id),name:u.first_name||'Игрок'};}catch(e){}
+  let g=localStorage.getItem('ck_guest');if(!g){g='guest_'+Math.random().toString(36).slice(2,8);localStorage.setItem('ck_guest',g);}return{id:g,name:'Игрок'};
+}
+const ME=getMe();
+
+// ── Режим ──
+let onlineMode=false,roomCode=null,roomRef=null,myColor=null,opponentName='Соперник';
+
+function genCode(){const ch='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let c='';for(let i=0;i<5;i++)c+=ch[Math.floor(Math.random()*ch.length)];return c;}
+
+function boardToStr(b){return b.map(r=>r.join('')).join(',');}
+function strToBoard(s){return s.split(',').map(r=>r.split('').map(Number));}
+
+// ── Онлайн: создать комнату ──
+document.getElementById('createRoomBtn').onclick=()=>{
+  if(!fbReady)return;
+  const code=genCode();myColor='red';
+  const initial={board:boardToStr(initBoardState()),turn:'red',status:'waiting',redId:ME.id,redName:ME.name,whiteId:null,whiteName:null};
+  db.ref('ck_rooms/'+code).set(initial).then(()=>{
+    document.getElementById('onlineOverlay').classList.remove('show');
+    document.getElementById('roomCodeDisplay').textContent=code;
+    document.getElementById('waitingOverlay').classList.add('show');
+    roomCode=code;startOnlineListener(code);
+    db.ref('ck_rooms/'+code+'/redId').onDisconnect().set(null);
+  });
+};
+
+// ── Онлайн: войти ──
+document.getElementById('joinRoomBtn').onclick=()=>{
+  const code=document.getElementById('joinCodeInput').value.trim().toUpperCase();
+  if(code.length<4)return;
+  db.ref('ck_rooms/'+code).get().then(snap=>{
+    const data=snap.val();
+    if(!data){alert('Комната не найдена');return;}
+    if(data.whiteId&&data.whiteId!==ME.id){alert('Комната занята');return;}
+    myColor='white';roomCode=code;
+    db.ref('ck_rooms/'+code).update({whiteId:ME.id,whiteName:ME.name,status:'playing'}).then(()=>{
+      document.getElementById('onlineOverlay').classList.remove('show');
+      startOnlineListener(code);
+    });
+  });
+};
+
+document.getElementById('closeOnlineOverlay').onclick=()=>document.getElementById('onlineOverlay').classList.remove('show');
+
+document.getElementById('cancelRoomBtn').onclick=()=>{
+  if(roomRef)roomRef.off();
+  if(roomCode)db.ref('ck_rooms/'+roomCode).remove();
+  document.getElementById('waitingOverlay').classList.remove('show');
+  roomCode=null;roomRef=null;myColor=null;
+};
+
+document.getElementById('copyCodeBtn').onclick=()=>{
+  const code=document.getElementById('roomCodeDisplay').textContent;
+  navigator.clipboard.writeText(code).then(()=>{
+    const b=document.getElementById('copyCodeBtn');b.textContent='Скопировано ✓';setTimeout(()=>b.textContent='Скопировать',1500);
+  });
+};
+
+document.getElementById('shareCodeBtn').onclick=()=>{
+  const code=document.getElementById('roomCodeDisplay').textContent;
+  const text='Сыграем в шашки онлайн? ♟️\nКод комнаты: '+code+'\nhttps://t.me/SuperSexyChat_bot?start=game';
+  try{if(window.Telegram&&window.Telegram.WebApp&&window.Telegram.WebApp.switchInlineQuery)window.Telegram.WebApp.switchInlineQuery(code,['users','groups']);
+  else navigator.clipboard.writeText(text);}catch(e){}
+};
+
+function startOnlineListener(code){
+  roomRef=db.ref('ck_rooms/'+code);
+  roomRef.on('value',snap=>{
+    const data=snap.val();if(!data)return;
+    if(data.status==='waiting'){document.getElementById('waitingStatus').textContent='⏳ Ждём соперника...';return;}
+    if(data.status==='playing'||data.status==='started'){
+      if(document.getElementById('waitingOverlay').classList.contains('show')){
+        document.getElementById('waitingOverlay').classList.remove('show');
+        onlineMode=true;
+        opponentName=myColor==='red'?(data.whiteName||'Соперник'):(data.redName||'Соперник');
+        document.getElementById('onlineBadge').innerHTML='<span class="online-badge">🟢 Онлайн · ты — '+(myColor==='red'?'🔴':'⚪')+' · соперник — '+opponentName+'</span>';
+        initOnlineGame(data);return;
+      }
+      // обновление доски от соперника
+      const incomingBoard=strToBoard(data.board);
+      const incomingTurn=data.turn;
+      const myTurnColor=myColor==='red'?'red':'white';
+      if(incomingTurn===myTurnColor){
+        // пришёл наш ход — применяем доску соперника
+        board=incomingBoard;
+        currentTurn=myColor==='red'?1:2;
+        validMoves=getValidMoves(currentTurn,board,null,null);
+        selected=null;chainPiece=null;
+        updateHUD();draw();
+        updateReactBar();
+      }
+      if(data.winner){
+        const iWon=(data.winner===myColor);
+        showEnd(iWon?'🏆 Ты победил!':'💥 Ты проиграл!');
+      }
+      // реакции
+      if(data.reaction&&data.reaction.ts!==lastReactionTs){
+        lastReactionTs=data.reaction.ts;
+        flyReaction(data.reaction.emoji);
+      }
+    }
+  });
+}
+
+function initOnlineGame(data){
+  board=strToBoard(data.board);
+  currentTurn=1;// красные ходят первыми
+  if(myColor==='red'){
+    validMoves=getValidMoves(1,board,null,null);
+  } else {
+    validMoves=[];// ждём хода красного
+    currentTurn=2;
+  }
+  gameOver=false;selected=null;chainPiece=null;animPieces=[];
+  document.getElementById('onlineBadge').innerHTML='<span class="online-badge">🟢 Онлайн · ты — '+(myColor==='red'?'🔴':'⚪')+' · соперник — '+opponentName+'</span>';
+  updateReactBar();updateHUD();draw();
+}
+
+function isMyOnlineTurn(){
+  return onlineMode&&((myColor==='red'&&currentTurn===1)||(myColor==='white'&&currentTurn===2));
+}
+
+function sendOnlineMove(newBoard,nextTurnColor){
+  db.ref('ck_rooms/'+roomCode).update({board:boardToStr(newBoard),turn:nextTurnColor});
+}
+
+// ── Реакции ──
+const REACTIONS=['😂','😎','😱','🔥','👋','🤝','♟️','👑','💥','🎯'];
+let reactCooldown=false,lastReactionTs=0;
+
+function updateReactBar(){
+  const bar=document.getElementById('reactBar');
+  if(!onlineMode){bar.classList.remove('show');bar.innerHTML='';return;}
+  if(bar.dataset.built==='1'){bar.classList.add('show');return;}
+  bar.innerHTML='';
+  REACTIONS.forEach(em=>{
+    const b=document.createElement('button');b.className='react-btn';b.textContent=em;
+    b.onclick=()=>sendReaction(em);bar.appendChild(b);
+  });
+  bar.dataset.built='1';bar.classList.add('show');
+}
+
+function sendReaction(em){
+  if(!onlineMode||!roomCode||reactCooldown)return;
+  reactCooldown=true;
+  document.querySelectorAll('.react-btn').forEach(b=>b.disabled=true);
+  setTimeout(()=>{reactCooldown=false;document.querySelectorAll('.react-btn').forEach(b=>b.disabled=false);},900);
+  db.ref('ck_rooms/'+roomCode+'/reaction').set({emoji:em,from:ME.id,ts:Date.now()});
+}
+
+function flyReaction(em){
+  const layer=document.getElementById('reactLayer');if(!layer)return;
+  const el=document.createElement('div');el.className='react-fly';el.textContent=em;
+  el.style.left=(30+Math.random()*40).toFixed(1)+'%';
+  el.style.fontSize=(32+Math.random()*14).toFixed(0)+'px';
+  layer.appendChild(el);setTimeout(()=>el.remove(),2500);
+}
+
+// ── initBoardState для онлайна ──
+function initBoardState(){
+  const b=Array.from({length:N},()=>Array(N).fill(0));
+  for(let r=0;r<3;r++)for(let c=0;c<N;c++)if((r+c)%2===1)b[r][c]=2;
+  for(let r=5;r<8;r++)for(let c=0;c<N;c++)if((r+c)%2===1)b[r][c]=1;
+  return b;
+}
+
+// ── Кнопки режима ──
+document.getElementById('modeBotBtn').onclick=()=>{
+  if(onlineMode){
+    onlineMode=false;if(roomRef)roomRef.off();roomRef=null;roomCode=null;myColor=null;
+    document.getElementById('onlineBadge').innerHTML='';updateReactBar();
+  }
+  document.getElementById('modeBotBtn').className='mode-btn active-bot';
+  document.getElementById('modeOnlineBtn').className='mode-btn inactive';
+  startGame();
+};
+
+document.getElementById('modeOnlineBtn').onclick=()=>{
+  if(!fbReady){alert('Онлайн недоступен');return;}
+  document.getElementById('modeBotBtn').className='mode-btn inactive';
+  document.getElementById('modeOnlineBtn').className='mode-btn active-online';
+  document.getElementById('onlineOverlay').classList.add('show');
+};
+
+document.getElementById('infoBtn').onclick=()=>document.getElementById('infoOverlay').classList.add('show');
+document.getElementById('closeInfo').onclick=()=>document.getElementById('infoOverlay').classList.remove('show');
+document.getElementById('restartBtn').onclick=()=>{document.getElementById('endOverlay').classList.remove('show');startGame();};
+document.getElementById('restartBtn2').onclick=()=>{document.getElementById('endOverlay').classList.remove('show');startGame();};
+
+function startGame(){
+  initBoard();
+  resize();
+  validMoves=getValidMoves(1,board,null,null);
+  updateHUD();draw();
+}
+
+if(document.readyState==='complete'||document.readyState==='interactive') startGame();
+else window.addEventListener('DOMContentLoaded',startGame);
+</script>
+</body>
+</html>
