@@ -6,63 +6,120 @@
 <title>Тетрис</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Russo+One&family=Rubik:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
-  :root{--ink:#1E4635;--ink-soft:#4C7767;--blue:#4FB8E8;--blue-dark:#1B7FA8;--card-bg:#FFFFFF;}
-  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;}
-  html,body{margin:0;padding:0;height:100%;width:100%;font-family:'Nunito',sans-serif;color:var(--ink);
-    touch-action:none;overscroll-behavior:none;
-    background:linear-gradient(180deg,#BFF3E0 0%,#E9FBEF 55%,#FFF7E0 100%);overflow:hidden;}
-  .wrap{position:fixed;inset:0;display:flex;flex-direction:column;padding:0 10px;}
-  .icon-btn{position:fixed;width:40px;height:40px;border-radius:50%;background:#0f1710;
-    display:flex;align-items:center;justify-content:center;text-decoration:none;color:var(--ink);
-    z-index:20;border:2px solid #35C57A;
-    box-shadow:0 6px 0 rgba(0,0,0,0.25),0 8px 14px -6px rgba(0,0,0,0.4), 0 0 14px rgba(53,197,122,0.55);
-    animation:pentagram-glow 2.4s ease-in-out infinite;}
-  .icon-btn:active{transform:translateY(3px);}
-  .icon-btn svg{width:18px;height:18px;filter:drop-shadow(0 0 3px rgba(53,197,122,0.9));}
-  .back-btn{top:12px;left:12px;}
-  .pause-btn{top:12px;right:12px;}
-  @keyframes pentagram-glow{
-    0%,100%{ box-shadow:0 6px 0 rgba(0,0,0,0.25),0 8px 14px -6px rgba(0,0,0,0.4), 0 0 10px rgba(53,197,122,0.45); }
-    50%{ box-shadow:0 6px 0 rgba(0,0,0,0.25),0 8px 14px -6px rgba(0,0,0,0.4), 0 0 20px rgba(53,197,122,0.85); }
-  }
-  .hud{display:flex;justify-content:center;gap:6px;padding:10px 60px 4px;flex-wrap:wrap;flex:0 0 auto;}
-  .pill{background:#E4F6FD;color:var(--blue-dark);font-family:'Baloo 2',sans-serif;font-weight:700;
-    padding:3px 10px;border-radius:20px;font-size:12px;}
-  .main-row{flex:1;display:flex;gap:10px;align-items:center;justify-content:center;min-height:0;}
-  .board-holder{flex:1;display:flex;align-items:center;justify-content:center;min-height:0;height:100%;}
-  canvas#board{display:block;box-shadow:0 14px 24px -10px rgba(30,70,53,0.25);}
-  .side{display:flex;flex-direction:column;gap:10px;align-items:center;flex:0 0 auto;}
-  .next-label{font-family:'Baloo 2',sans-serif;font-weight:700;font-size:11px;color:var(--ink-soft);}
-  canvas#next{background:#fff;border-radius:12px;box-shadow:0 8px 16px -8px rgba(30,70,53,0.25);}
-  .controls{display:flex;justify-content:center;gap:8px;padding:12px 0 16px;flex:0 0 auto;}
-  .ctrl-btn{background:var(--card-bg);border:none;border-radius:14px;font-size:19px;color:var(--ink);
-    width:50px;height:50px;box-shadow:0 6px 0 rgba(0,0,0,0.06),0 8px 14px -6px rgba(30,70,53,0.2);}
-  .ctrl-btn:active{transform:translateY(3px);box-shadow:0 3px 0 rgba(0,0,0,0.06);}
-  .overlay{position:fixed;inset:0;background:rgba(30,70,53,0.55);display:none;align-items:center;justify-content:center;z-index:30;}
-  .overlay.show{display:flex;}
-  .modal{background:var(--card-bg);border-radius:22px;padding:26px 24px;text-align:center;max-width:280px;
-    box-shadow:0 20px 40px -10px rgba(0,0,0,0.35);}
-  .modal h2{font-family:'Baloo 2',sans-serif;margin:0 0 8px;font-size:22px;color:var(--blue-dark);}
-  .modal p{font-weight:700;color:var(--ink-soft);margin:0 0 16px;}
-  .btn-main{background:linear-gradient(135deg,var(--blue),#A9DFF6);border:none;color:#fff;font-family:'Baloo 2',sans-serif;
-    font-weight:700;font-size:16px;padding:12px 26px;border-radius:16px;box-shadow:0 8px 0 var(--blue-dark);}
-  .btn-main:active{transform:translateY(4px);box-shadow:0 4px 0 var(--blue-dark);}
+:root {
+  --space:      #111d2d;
+  --space-deep: #08111d;
+  --ink:        #14202b;
+  --cream:      #fff5cf;
+  --paper:      #f6e8bd;
+  --red:        #d8422c;
+  --gold:       #f3bc37;
+  --cyan:       #55d8df;
+  --pink:       #df5b9f;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+html,body {
+  margin: 0; padding: 0; height: 100%; width: 100%;
+  font-family: 'Rubik', sans-serif; color: var(--cream);
+  touch-action: none; overscroll-behavior: none; overflow: hidden;
+  background-color: var(--space-deep);
+  background-image:
+    radial-gradient(circle at 8%  12%, #f6e8bd 0 1px,   transparent 1.8px),
+    radial-gradient(circle at 82%  8%, #f3bc37 0 1.5px, transparent 2.2px),
+    radial-gradient(circle at 13% 45%, #69dae0 0 1px,   transparent 1.8px),
+    radial-gradient(circle at 91% 52%, #f6e8bd 0 1px,   transparent 1.8px),
+    radial-gradient(circle at 25% 81%, #f3bc37 0 1.5px, transparent 2.2px),
+    radial-gradient(circle at 72% 87%, #69dae0 0 1px,   transparent 1.8px),
+    linear-gradient(165deg, #1b3546 0%, var(--space) 52%, var(--space-deep) 100%);
+  background-size: 145px 155px, 177px 173px, 211px 218px,
+                   189px 199px, 253px 239px, 181px 201px, auto;
+}
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: 0.18;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.52'/%3E%3C/svg%3E");
+}
+.wrap { position: fixed; inset: 0; display: flex; flex-direction: column; padding: 0 10px; z-index: 1; }
+.icon-btn {
+  position: fixed; width: 42px; height: 42px; border-radius: 50%;
+  background: rgba(20,32,43,0.88);
+  display: flex; align-items: center; justify-content: center;
+  text-decoration: none; z-index: 20;
+  border: 3px solid var(--ink);
+  box-shadow: 0 4px 0 var(--ink), 0 6px 14px rgba(0,0,0,0.45);
+  transition: transform 0.12s;
+}
+.icon-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
+.icon-btn svg { width: 18px; height: 18px; }
+.back-btn  { top: 12px; left: 12px; }
+.pause-btn { top: 12px; right: 12px; }
+.hud {
+  display: flex; justify-content: center; gap: 8px;
+  padding: 12px 60px 4px; flex-wrap: wrap; flex: 0 0 auto;
+}
+.pill {
+  background: var(--paper); color: var(--ink);
+  font-family: 'Russo One', sans-serif; font-size: 12px;
+  padding: 4px 12px; border-radius: 20px;
+  border: 2px solid var(--ink); box-shadow: 0 3px 0 var(--ink);
+  letter-spacing: 0.3px;
+}
+.main-row { flex: 1; display: flex; gap: 10px; align-items: center; justify-content: center; min-height: 0; }
+.board-holder { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0; height: 100%; }
+canvas#board { display: block; box-shadow: 0 8px 0 var(--ink), 0 14px 30px rgba(0,0,0,0.5); border-radius: 6px; }
+.side { display: flex; flex-direction: column; gap: 10px; align-items: center; flex: 0 0 auto; }
+.next-label {
+  font-family: 'Rubik', sans-serif; font-weight: 600; font-size: 10px;
+  color: rgba(255,245,207,0.6); letter-spacing: 1px; text-transform: uppercase;
+}
+canvas#next {
+  background: rgba(20,32,43,0.72); border-radius: 10px;
+  border: 2px solid var(--ink); box-shadow: 0 4px 0 var(--ink);
+}
+.controls { display: flex; justify-content: center; gap: 8px; padding: 12px 0 16px; flex: 0 0 auto; }
+.ctrl-btn {
+  background: var(--paper); border: 3px solid var(--ink); border-radius: 12px;
+  font-size: 18px; color: var(--ink);
+  width: 52px; height: 52px;
+  box-shadow: 0 5px 0 var(--ink);
+}
+.ctrl-btn:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--ink); }
+.overlay { position: fixed; inset: 0; background: rgba(8,17,29,0.72); display: none; align-items: center; justify-content: center; z-index: 30; padding: 20px; }
+.overlay.show { display: flex; }
+.modal {
+  background: var(--paper); color: var(--ink);
+  border: 3px solid var(--ink); border-radius: 12px 20px 13px 18px;
+  padding: 26px 24px; text-align: center; max-width: 280px; width: 100%;
+  box-shadow: 0 6px 0 var(--ink), 0 14px 30px rgba(0,0,0,0.5);
+}
+.modal h2 {
+  font-family: 'Russo One', sans-serif; margin: 0 0 6px; font-size: 22px;
+  color: var(--red); -webkit-text-stroke: 1px var(--ink);
+  text-shadow: 2px 2px 0 rgba(20,32,43,0.25);
+}
+.modal p { font-weight: 600; color: #49515a; margin: 0 0 18px; font-size: 14px; }
+.btn-main {
+  background: var(--gold); border: 3px solid var(--ink); color: var(--ink);
+  font-family: 'Russo One', sans-serif; font-size: 15px;
+  padding: 11px 26px; border-radius: 10px 18px 11px 16px;
+  box-shadow: 0 5px 0 var(--ink); cursor: pointer;
+}
+.btn-main:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--ink); }
+@media (prefers-reduced-motion: reduce) { * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }
 </style>
 </head>
 <body>
-<a class="icon-btn back-btn" href="index.html">
+<a class="icon-btn back-btn" href="index.html" aria-label="Назад">
   <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="50" cy="50" r="46" fill="none" stroke="#35C57A" stroke-width="3" opacity="0.5"/>
-    <path d="M60 20 L32 50 L60 80" fill="none" stroke="#35C57A" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M60 20 L32 50 L60 80" fill="none" stroke="var(--cream)" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>
 </a>
-<button class="icon-btn pause-btn" id="pauseBtn">
+<button class="icon-btn pause-btn" id="pauseBtn" aria-label="Пауза">
   <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="50" cy="50" r="46" fill="none" stroke="#35C57A" stroke-width="3" opacity="0.5"/>
-    <rect x="34" y="28" width="12" height="44" fill="#35C57A"/>
-    <rect x="56" y="28" width="12" height="44" fill="#35C57A"/>
+    <rect x="28" y="24" width="14" height="52" rx="4" fill="var(--cream)"/>
+    <rect x="58" y="24" width="14" height="52" rx="4" fill="var(--cream)"/>
   </svg>
 </button>
 <div class="wrap">
@@ -107,7 +164,6 @@ const nctx=nextCanvas.getContext('2d');
 const START_SPEED=900, MIN_SPEED=250, LINES_PER_LEVEL=5, SPEED_STEP=45;
 const CLEAR_DELAY=140;
 let grid, current, nextPiece, score, lines, level, alive, dropCounter, dropInterval, lastTime, flashRows, flashTimer, landFlash, landFlashTimer;
-// ФИКС: пока строки мигают и удаляются, поле "заморожено" — фигура не спавнится и не двигается
 let locked=false;
 function resizeCanvas(){
   const holder=document.querySelector('.board-holder');
@@ -118,10 +174,10 @@ function resizeCanvas(){
   canvas.style.width=pxW+'px'; canvas.style.height=pxH+'px';
   canvas.width=pxW*dpr; canvas.height=pxH*dpr;
   ctx.setTransform(dpr,0,0,dpr,0,0);
-  canvas.style.borderRadius='14px';
+  canvas.style.borderRadius='8px';
 }
 window.addEventListener('resize', resizeCanvas);
-const COLORS={ I:'#4FB8E8', J:'#3A6FDE', L:'#FFA940', O:'#FFC94D', S:'#35C57A', T:'#A87BE0', Z:'#F58FB3' };
+const COLORS={ I:'#55d8df', J:'#4faec7', L:'#f3bc37', O:'#df5b9f', S:'#62bc76', T:'#a66da4', Z:'#d8422c' };
 const SHAPES={
   I:[[1,1,1,1]], J:[[1,0,0],[1,1,1]], L:[[0,0,1],[1,1,1]],
   O:[[1,1],[1,1]], S:[[0,1,1],[1,1,0]], T:[[0,1,0],[1,1,1]], Z:[[1,1,0],[0,1,1]]
@@ -164,7 +220,6 @@ function merge(){
   const {shape,color,x,y}=current;
   shape.forEach((row,r)=>row.forEach((v,c)=>{ if(v && y+r>=0) grid[y+r][x+c]=color; }));
 }
-// ФИКС: clearLines теперь сообщает, когда строки РЕАЛЬНО удалены — новая фигура ждёт этого момента
 function clearLines(onDone){
   let full=[];
   for(let r=0;r<rows;r++) if(grid[r].every(v=>v)) full.push(r);
@@ -195,10 +250,7 @@ function drop(){
     landFlashTimer=6;
     merge();
     locked=true;
-    clearLines(()=>{
-      locked=false;
-      if(alive) spawnNext();
-    });
+    clearLines(()=>{ locked=false; if(alive) spawnNext(); });
   }
   dropCounter=0;
 }
@@ -206,15 +258,9 @@ function move(dx){ if(paused||locked||!alive) return; if(!collide(current.x+dx,c
 function doRotate(){
   if(paused||locked||!alive) return;
   const rotated=rotate(current.shape);
-  // ФИКС: раньше пробовался единственный сдвиг на 1 клетку, поэтому длинная I-фигура
-  // у самой стены (и любая фигура, упёршаяся в стакан) просто отказывалась вращаться.
-  // Теперь перебираем несколько вариантов отскока — как в классическом тетрисе.
   const kicks=[0,-1,1,-2,2];
   for(const kick of kicks){
-    if(!collide(current.x+kick,current.y,rotated)){
-      current.shape=rotated; current.x+=kick;
-      return;
-    }
+    if(!collide(current.x+kick,current.y,rotated)){ current.shape=rotated; current.x+=kick; return; }
   }
 }
 function shade(hex, amt){
@@ -229,28 +275,29 @@ function drawCell(c2,x,y,color,size){
   grad.addColorStop(1, shade(color,-25));
   c2.fillStyle=grad;
   c2.fillRect(x*size+1,y*size+1,size-2,size-2);
-  c2.strokeStyle='rgba(255,255,255,0.35)';
+  c2.strokeStyle='rgba(255,255,255,0.25)';
   c2.strokeRect(x*size+1.5,y*size+1.5,size-3,size-3);
 }
 function draw(){
   const pxW=cell*cols, pxH=cell*rows;
   ctx.clearRect(0,0,pxW,pxH);
-  ctx.fillStyle='#F5FBFF'; ctx.fillRect(0,0,pxW,pxH);
+  ctx.fillStyle='#111d2d'; ctx.fillRect(0,0,pxW,pxH);
+  ctx.fillStyle='rgba(255,245,207,0.025)';
+  for(let r=0;r<rows;r++) for(let c=0;c<cols;c++) if((r+c)%2===0) ctx.fillRect(c*cell,r*cell,cell,cell);
   for(let r=0;r<rows;r++) for(let c=0;c<cols;c++) if(grid[r][c]) drawCell(ctx,c,r,grid[r][c],cell);
   if(landFlashTimer>0){
-    ctx.fillStyle=`rgba(255,255,255,${landFlashTimer/6*0.5})`;
+    ctx.fillStyle=`rgba(255,245,207,${landFlashTimer/6*0.4})`;
     landFlash.forEach(p=> ctx.fillRect(p.x*cell,p.y*cell,cell,cell));
     landFlashTimer--;
   }
   if(flashTimer>0){
-    ctx.fillStyle=`rgba(255,255,255,${flashTimer/8*0.8})`;
+    ctx.fillStyle=`rgba(255,245,207,${flashTimer/8*0.7})`;
     flashRows.forEach(r=> ctx.fillRect(0,r*cell,pxW,cell));
     flashTimer--;
   }
-  // во время "заморозки" активной фигуры на поле уже нет — она слилась с сеткой
   if(!locked && current){
     const gy=ghostY();
-    ctx.globalAlpha=0.25;
+    ctx.globalAlpha=0.2;
     current.shape.forEach((row,r)=>row.forEach((v,c)=>{ if(v) drawCell(ctx,current.x+c,gy+r,current.color,cell); }));
     ctx.globalAlpha=1;
     current.shape.forEach((row,r)=>row.forEach((v,c)=>{ if(v) drawCell(ctx,current.x+c,current.y+r,current.color,cell); }));
@@ -258,50 +305,42 @@ function draw(){
 }
 function drawNext(){
   nctx.clearRect(0,0,nextCanvas.width,nextCanvas.height);
+  nctx.fillStyle='rgba(20,32,43,0.72)'; nctx.fillRect(0,0,nextCanvas.width,nextCanvas.height);
   if(!nextPiece) return;
   const size=16;
   const w=nextPiece.shape[0].length*size, h=nextPiece.shape.length*size;
   const ox=(nextCanvas.width-w)/2, oy=(nextCanvas.height-h)/2;
-  nctx.save();
-  nctx.translate(ox,oy);
+  nctx.save(); nctx.translate(ox,oy);
   nextPiece.shape.forEach((row,r)=>row.forEach((v,c)=>{ if(v) drawCell(nctx,c,r,nextPiece.color,size); }));
   nctx.restore();
 }
 function gameOver(){
-  alive=false;
-  locked=false;
+  alive=false; locked=false;
   document.getElementById('finalScore').textContent='Очки: '+score;
   document.getElementById('overlay').classList.add('show');
 }
 let paused=false;
 function loop(time){
   if(!alive) return;
-  if(paused){
-    draw();
-    drawPauseOverlay();
-    return;
-  }
-  // ФИКС: первый кадр больше не даёт огромную дельту и мгновенный дроп
+  if(paused){ draw(); drawPauseOverlay(); return; }
   if(!lastTime) lastTime=time;
-  let delta=time-lastTime;
-  lastTime=time;
-  if(delta>200) delta=200; // после сворачивания приложения не проваливаемся вниз пачкой
-  if(!locked){
-    dropCounter+=delta;
-    if(dropCounter>dropInterval) drop();
-  }
+  let delta=time-lastTime; lastTime=time;
+  if(delta>200) delta=200;
+  if(!locked){ dropCounter+=delta; if(dropCounter>dropInterval) drop(); }
   draw();
   requestAnimationFrame(loop);
 }
 function drawPauseOverlay(){
   const pxW=cell*cols, pxH=cell*rows;
-  ctx.fillStyle='rgba(0,0,0,0.45)';
-  ctx.fillRect(0,0,pxW,pxH);
-  ctx.fillStyle='#fff';
-  ctx.font='bold '+(cell*1.6)+'px "Baloo 2", sans-serif';
+  ctx.fillStyle='rgba(8,17,29,0.72)'; ctx.fillRect(0,0,pxW,pxH);
+  ctx.fillStyle='#f3bc37';
+  ctx.font='bold '+(cell*1.6)+'px "Russo One", sans-serif';
   ctx.textAlign='center';
-  ctx.fillText('Пауза', pxW/2, pxH/2);
-  ctx.font='bold '+(cell*0.42)+'px "Nunito", sans-serif';
+  ctx.shadowColor='#f3bc37'; ctx.shadowBlur=12;
+  ctx.fillText('ПАУЗА', pxW/2, pxH/2);
+  ctx.shadowBlur=0;
+  ctx.fillStyle='rgba(255,245,207,0.7)';
+  ctx.font=(cell*0.42)+'px "Rubik", sans-serif';
   ctx.fillText('Нажми на паузу ещё раз', pxW/2, pxH/2+cell*0.9);
 }
 document.getElementById('pauseBtn').onclick=()=>{
@@ -333,9 +372,7 @@ document.addEventListener('keydown',e=>{
   if(e.key==='ArrowUp') doRotate();
 });
 let touchStartX=0, touchStartY=0, touchMoved=false;
-canvas.addEventListener('touchstart',e=>{
-  touchStartX=e.touches[0].clientX; touchStartY=e.touches[0].clientY; touchMoved=false;
-},{passive:true});
+canvas.addEventListener('touchstart',e=>{ touchStartX=e.touches[0].clientX; touchStartY=e.touches[0].clientY; touchMoved=false; },{passive:true});
 canvas.addEventListener('touchmove',e=>{
   const dx=e.touches[0].clientX-touchStartX;
   if(Math.abs(dx)>28){ move(dx>0?1:-1); touchStartX=e.touches[0].clientX; touchMoved=true; }
@@ -344,7 +381,6 @@ canvas.addEventListener('touchend',e=>{
   const dy=e.changedTouches[0].clientY-touchStartY;
   if(!touchMoved){ if(dy>40) drop(); else doRotate(); }
 },{passive:true});
-// ФИКС: одна точка запуска вместо двух конкурирующих
 if(document.readyState==='complete' || document.readyState==='interactive') reset();
 else window.addEventListener('DOMContentLoaded', reset);
 </script>
