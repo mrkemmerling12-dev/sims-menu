@@ -54,6 +54,29 @@ canvas{display:block;touch-action:none;}
 .pause-btn svg{width:12px;height:12px;}
 .pause-btn:active{opacity:1;}
 
+.countdown{
+  position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+  z-index:35;pointer-events:none;
+}
+.countdown-num{
+  font-size:clamp(80px,22vw,140px);
+  font-family:'Russo One',sans-serif;
+  color:#fff;
+  text-shadow:0 0 30px var(--cyan),0 0 60px var(--cyan),0 0 100px var(--cyan);
+  animation:cd-pop 0.85s ease-out forwards;
+}
+.countdown-go{
+  font-size:clamp(50px,14vw,90px);
+  color:var(--gold);
+  text-shadow:0 0 30px var(--gold),0 0 60px var(--gold);
+  animation:cd-pop 0.6s ease-out forwards;
+}
+@keyframes cd-pop{
+  0%{transform:scale(2.2);opacity:0;}
+  30%{transform:scale(0.9);opacity:1;}
+  70%{transform:scale(1);opacity:1;}
+  100%{transform:scale(0.6);opacity:0;}
+}
 .combo-flash{position:fixed;top:56px;right:12px;font-size:11px;color:var(--gold);
   text-shadow:0 0 8px var(--gold);pointer-events:none;z-index:12;}
 /* Экран паузы */
@@ -95,6 +118,7 @@ canvas{display:block;touch-action:none;}
   <div class="bonus-bar" id="bonusBar"></div>
 </div>
 <div class="wave-flash" id="waveFlash"></div>
+<div class="countdown hidden" id="countdownEl"></div>
 <button class="pause-btn" id="pauseBtn" title="Пауза">
   <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
     <rect x="22" y="18" width="20" height="64" rx="6" fill="#fff5cf"/>
@@ -574,7 +598,7 @@ function spawnWave(){
     showWaveFlash(`👾 БОСС ВОЛНЫ ${wave}!`);
   } else {
     showWaveFlash(`ВОЛНА ${wave}`);
-    const n=Math.min(5+wave*2,28);
+    const n=Math.min(wave===1?4:wave===2?6:5+wave*2, 28);
     const cols=Math.min(6,Math.ceil(Math.sqrt(n)));
     const rows=Math.ceil(n/cols);
     const types=['A','A','B','C'];
@@ -584,14 +608,14 @@ function spawnWave(){
         const type=types[Math.floor(Math.random()*(wave<3?2:wave<6?3:4))];
         const w=type==='C'?44:type==='B'?38:28;
         const hp=type==='boss'?99:type==='C'?3+Math.floor(wave/2):type==='B'?2+Math.floor(wave/3):1+Math.floor(wave/4);
-        const spd=0.5+wave*0.08+Math.random()*0.3;
+        const spd=wave<=2?0.28+Math.random()*0.15:wave<=4?0.42+Math.random()*0.2:0.5+wave*0.08+Math.random()*0.3;
         enemies.push({
           type,x:(c+0.5)*(W/(cols))+Math.random()*16-8,y:-60-r*60,
           w,h:w,hp,maxHp:hp,
           color:type==='A'?C.cyan:type==='B'?C.pink:C.purple,
           vx:(Math.random()-0.5)*1.2,vy:spd,
           shootTimer:Math.floor(Math.random()*80),
-          shootInterval:Math.max(28, 160-wave*5),
+          shootInterval:Math.max(28, wave<=2?220:wave<=4?180:160-wave*5),
           score:type==='C'?40:type==='B'?25:10,
           phase:Math.random()*Math.PI*2,
         });
@@ -871,6 +895,22 @@ function applyPickup(type){
 }
 
 
+
+// ── Обратный отсчёт перед стартом ──
+function runCountdown(onDone){
+  const el=document.getElementById('countdownEl');
+  el.classList.remove('hidden');
+  const steps=['3','2','1','GO!'];
+  let i=0;
+  function showStep(){
+    el.innerHTML='<div class="'+(steps[i]==='GO!'?'countdown-go':'countdown-num')+'">'+steps[i]+'</div>';
+    i++;
+    if(i<steps.length) setTimeout(showStep,850);
+    else setTimeout(()=>{ el.classList.add('hidden'); el.innerHTML=''; onDone(); },600);
+  }
+  showStep();
+}
+
 // ── Пауза ──
 function togglePause(){
   if(!gameActive) return;
@@ -985,10 +1025,25 @@ function initGame(){
 function startGame(){
   document.getElementById('startScreen').classList.add('hidden');
   document.getElementById('gameOverScreen').classList.add('hidden');
-  gameActive=true;initGame();
+  initGame();
+  // Рисуем фон пока идёт отсчёт, но враги не двигаются
+  gameActive=false;
   lastTime=performance.now();
   if(frameId) cancelAnimationFrame(frameId);
-  frameId=requestAnimationFrame(gameLoop);
+  // Запускаем фоновую отрисовку
+  (function bgWait(ts){
+    ctx.fillStyle=C.bg;ctx.fillRect(0,0,W,H);
+    stars.forEach(s2=>{s2.y+=s2.sp*0.3;if(s2.y>H)s2.y=-5;
+      ctx.globalAlpha=0.3+0.3*Math.sin(s2.tw+=0.04);ctx.fillStyle=C.star;ctx.beginPath();ctx.arc(s2.x,s2.y,s2.r,0,Math.PI*2);ctx.fill();});
+    ctx.globalAlpha=1;
+    drawPlayer(player);
+    if(!gameActive) requestAnimationFrame(bgWait);
+  })(performance.now());
+  runCountdown(()=>{
+    gameActive=true;
+    lastTime=performance.now();
+    frameId=requestAnimationFrame(gameLoop);
+  });
 }
 
 function endGame(){
