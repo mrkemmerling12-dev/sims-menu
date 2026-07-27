@@ -290,9 +290,9 @@ function updateStatsDisplay(){
 }
 // ---------- Игровые константы ----------
 const SIZE=10;
-const SHIP_LENGTHS=[4,3,3,3,2,2,2,2];
+const SHIP_LENGTHS=[4,3,3,3,2,2,2,2,1,1];
 const TOTAL_SHIP_CELLS=SHIP_LENGTHS.reduce((a,b)=>a+b,0);
-const SHIP_NAMES={4:'Линкор', 3:'Крейсер', 2:'Эсминец'};
+const SHIP_NAMES={4:'Линкор', 3:'Крейсер', 2:'Эсминец', 1:'Катер'};
 function idx(r,c){ return r*SIZE+c; }
 function emptyBoard(){ return '.'.repeat(SIZE*SIZE); }
 function setChar(str,i,ch){ return str.slice(0,i)+ch+str.slice(i+1); }
@@ -364,6 +364,20 @@ function shipSegmentsSunk(boardStr, shotsStr){
   }
   return sunk;
 }
+function markSurroundingMisses(shotsStr, boardStr, sunkSet){
+  // After a ship is sunk, fill all adjacent empty cells with 'M'
+  let s = shotsStr;
+  sunkSet.forEach(i => {
+    const r = Math.floor(i/SIZE), c = i%SIZE;
+    for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++){
+      const nr=r+dr, nc=c+dc;
+      if(nr<0||nr>=SIZE||nc<0||nc>=SIZE) continue;
+      const ni=idx(nr,nc);
+      if(boardStr[ni]!=='S' && s[ni]==='.') s=setChar(s,ni,'M');
+    }
+  });
+  return s;
+}
 function countHits(boardStr, shotsStr){
   let n=0;
   for(let i=0;i<boardStr.length;i++) if(boardStr[i]==='S' && shotsStr[i]==='H') n++;
@@ -419,91 +433,123 @@ function getShips(boardStr){
   return ships;
 }
 function shipSvgMarkup(length, cellSize, isSunk, allowMastOverflow){
-  const W = length*cellSize, H = cellSize;
-  const bowY=H*0.5;
-  const hullMid = isSunk ? '#3f3f47' : '#A5692B';
-  const hullDark = isSunk ? '#232328' : '#6E4419';
-  const deckCol = isSunk ? '#77777f' : '#E8C68A';
-  const plankCol = isSunk ? '#4a4a52' : '#8A5A26';
-  const cabinCol = isSunk ? '#2c2c31' : '#5C3A1C';
-  const cabinRoof = isSunk ? '#1c1c1f' : '#3D2510';
-  const sailCol = isSunk ? '#9a9aa2' : '#FFFBF2';
-  const sailShade = isSunk ? '#7a7a82' : '#EDE0C4';
-  const mastCol = isSunk ? '#3a3a40' : '#4A2E14';
-  const flagCol = isSunk ? '#5a5a62' : '#E14B4B';
-  const portholeCol = isSunk ? 'rgba(20,20,24,0.6)' : '#3D2510';
-  const waterlineCol = isSunk ? '#26262b' : '#7A4E22';
-  const hullPath = `
-    M 0,${H*0.32}
-    C ${W*0.04},${H*0.14} ${W*0.14},${H*0.08} ${W*0.24},${H*0.08}
-    L ${W*0.74},${H*0.1}
-    C ${W*0.86},${H*0.12} ${W*0.95},${H*0.28} ${W},${bowY}
-    C ${W*0.95},${H*0.72} ${W*0.86},${H*0.88} ${W*0.74},${H*0.9}
-    L ${W*0.24},${H*0.92}
-    C ${W*0.14},${H*0.92} ${W*0.04},${H*0.86} 0,${H*0.68}
-    Z`;
-  const waterlinePath = `
-    M 0,${H*0.68}
-    C ${W*0.04},${H*0.86} ${W*0.14},${H*0.92} ${W*0.24},${H*0.92}
-    L ${W*0.74},${H*0.9}
-    C ${W*0.86},${H*0.88} ${W*0.95},${H*0.72} ${W},${bowY}
-    L ${W},${bowY+H*0.06}
-    C ${W*0.95},${H*0.76} ${W*0.86},${H*0.92} ${W*0.74},${H*0.94}
-    L ${W*0.24},${H*0.96}
-    C ${W*0.12},${H*0.96} ${W*0.02},${H*0.9} 0,${H*0.72}
-    Z`;
-  const deckPath = `
-    M ${W*0.06},${H*0.34}
-    C ${W*0.1},${H*0.22} ${W*0.18},${H*0.18} ${W*0.26},${H*0.18}
-    L ${W*0.72},${H*0.2}
-    C ${W*0.82},${H*0.22} ${W*0.9},${H*0.34} ${W*0.94},${bowY}
-    C ${W*0.9},${H*0.66} ${W*0.82},${H*0.78} ${W*0.72},${H*0.8}
-    L ${W*0.26},${H*0.82}
-    C ${W*0.18},${H*0.82} ${W*0.1},${H*0.78} ${W*0.06},${H*0.66}
-    Z`;
-  let planks='';
-  for(let i=1;i<3;i++){
-    const py = H*0.32 + i*(H*0.36/3);
-    planks += `<line x1="${W*0.1}" y1="${py}" x2="${W*0.86}" y2="${py}" stroke="${plankCol}" stroke-width="${Math.max(0.6,H*0.02)}" opacity="0.35"/>`;
-  }
-  let portholes='';
-  if(length>=3){
-    for(let i=0;i<length;i++){
-      const cx = W*0.16 + i*((W*0.62)/(length-1||1));
-      portholes += `<circle cx="${cx}" cy="${H*0.55}" r="${H*0.055}" fill="${portholeCol}"/>`;
+  const W=length*cellSize, H=cellSize;
+  // Color palette — vibrant naval vs. charred wreck
+  const hull1  = isSunk?'#2e2e38':'#1a4a7a';
+  const hull2  = isSunk?'#3d3d4a':'#2563a8';
+  const deck   = isSunk?'#55555f':'#4ab3c8';
+  const stripe = isSunk?'#1a1a22':'#e8c040';  // bright yellow stripe
+  const cabin  = isSunk?'#1e1e26':'#0d3158';
+  const cabinR = isSunk?'#111118':'#082040';
+  const gun    = isSunk?'#2a2a32':'#0a2540';
+  const porthole=isSunk?'rgba(10,10,20,0.7)':'rgba(200,240,255,0.85)';
+  const smoke  = isSunk?'#111':'#888';
+  const wake   = isSunk?'rgba(30,30,40,0.2)':'rgba(150,220,255,0.25)';
+  const svgTop = allowMastOverflow ? -H*0.55 : 0;
+  const svgH   = H-svgTop;
+
+  // Hull shape — angular naval silhouette
+  const bowX=W, midY=H*0.5;
+  const hullTop=H*0.22, hullBot=H*0.82;
+  const hull=`M 0,${H*0.35} L ${W*0.06},${hullTop} L ${W*0.82},${hullTop}
+    L ${bowX},${midY} L ${W*0.82},${hullBot} L ${W*0.06},${hullBot} Z`;
+
+  // Waterline stripe
+  const waterline=`M 0,${H*0.62} L ${W*0.06},${H*0.68}
+    L ${W*0.82},${H*0.68} L ${bowX},${midY+H*0.08}
+    L ${W*0.82},${hullBot} L ${W*0.06},${hullBot} Z`;
+
+  // Deck plate
+  const deckPath=`M ${W*0.06},${H*0.29} L ${W*0.78},${H*0.29}
+    L ${W*0.92},${midY} L ${W*0.78},${H*0.71} L ${W*0.06},${H*0.71} Z`;
+
+  // Yellow identification stripe
+  const stripeY=H*0.38;
+  const stripePath=`M ${W*0.08},${stripeY} L ${W*0.8},${stripeY}
+    L ${W*0.9},${midY} L ${W*0.8},${H-stripeY} L ${W*0.08},${H-stripeY} Z`;
+
+  // Cabin block
+  const cabW=Math.min(H*0.52, W*0.22), cabH=H*0.36;
+  const cabX=W*0.12, cabY=midY-cabH/2;
+
+  // Smoke stack(s)
+  let stacks='';
+  const nStacks=Math.min(length-1,2);
+  for(let s=0;s<nStacks;s++){
+    const sx=W*(0.28+s*0.14), sy=H*0.08;
+    const sh=allowMastOverflow?H*0.58:H*0.2;
+    stacks+=`<rect x="${sx}" y="${cabY-sh}" width="${H*0.09}" height="${sh}" rx="${H*0.04}" fill="${gun}"/>
+    <rect x="${sx-H*0.03}" y="${cabY-sh-H*0.04}" width="${H*0.14}" height="${H*0.05}" rx="${H*0.02}" fill="${smoke}"/>`;
+    if(allowMastOverflow&&!isSunk){
+      // smoke puff
+      stacks+=`<ellipse cx="${sx+H*0.04}" cy="${cabY-sh-H*0.08}" rx="${H*0.07}" ry="${H*0.06}" fill="rgba(180,180,180,0.35)"/>
+      <ellipse cx="${sx+H*0.01}" cy="${cabY-sh-H*0.14}" rx="${H*0.05}" ry="${H*0.04}" fill="rgba(180,180,180,0.22)"/>`;
     }
   }
-  const cabinW=H*0.4, cabinH=H*0.3, cabinX=W*0.14, cabinY=H*0.5-cabinH/2;
-  const mastX = W*0.46;
-  const mastTopY = allowMastOverflow ? -H*0.62 : H*0.05;
-  const sailScale = allowMastOverflow ? 1 : 0.5;
-  const sailPath = `M ${mastX},${mastTopY+H*0.08*sailScale}
-    C ${mastX+W*0.18*sailScale},${mastTopY+H*0.18*sailScale} ${mastX+W*0.2*sailScale},${mastTopY+H*0.42*sailScale} ${mastX+W*0.02*sailScale},${mastTopY+H*0.48*sailScale}
-    L ${mastX},${mastTopY+H*0.4*sailScale} Z`;
-  const flagPath = `M ${mastX},${mastTopY} L ${mastX+H*0.24},${mastTopY+H*0.08} L ${mastX},${mastTopY+H*0.16} Z`;
-  const bowFlagX = W-H*0.08;
-  const bowFlagTop = allowMastOverflow ? H*0.02 : H*0.18;
-  const svgTop = allowMastOverflow ? mastTopY-H*0.1 : 0;
-  const svgH = H - svgTop;
-  return `
-  <svg viewBox="0 ${svgTop} ${W} ${svgH}" width="${W}" height="${svgH}"
-       style="position:absolute;left:0;bottom:0;overflow:visible;" xmlns="http://www.w3.org/2000/svg">
-    <ellipse cx="${W*0.46}" cy="${H*1.0}" rx="${W*0.42}" ry="${H*0.09}" fill="rgba(14,42,61,0.16)"/>
-    <path d="${hullPath}" fill="${hullMid}" stroke="${hullDark}" stroke-width="${Math.max(1,H*0.045)}"/>
-    <path d="${waterlinePath}" fill="${waterlineCol}"/>
-    <path d="${deckPath}" fill="${deckCol}"/>
-    ${planks}
+
+  // Gun turret(s) for big ships
+  let turrets='';
+  if(length>=3){
+    const tx=W*0.65, ty=midY;
+    turrets=`<ellipse cx="${tx}" cy="${ty}" rx="${H*0.17}" ry="${H*0.14}" fill="${gun}"/>
+    <rect x="${tx}" y="${ty-H*0.04}" width="${H*0.38}" height="${H*0.08}" rx="${H*0.03}" fill="${gun}"/>`;
+  }
+
+  // Portholes
+  let portholes='';
+  const nPorts=Math.min(length,4);
+  for(let p=0;p<nPorts;p++){
+    const px=W*0.08+p*(W*0.72/(nPorts));
+    portholes+=`<circle cx="${px}" cy="${H*0.56}" r="${H*0.065}" fill="${porthole}" stroke="${gun}" stroke-width="1"/>`;
+  }
+
+  // Wake foam beneath hull
+  const wakeEl=`<ellipse cx="${W*0.45}" cy="${H*0.93}" rx="${W*0.36}" ry="${H*0.07}" fill="${wake}"/>`;
+
+  // Anchor icon for single-deck
+  let anchor='';
+  if(length===1){
+    anchor=`<text x="${W*0.5}" y="${H*0.65}" text-anchor="middle" font-size="${H*0.45}" fill="${porthole}" opacity="0.8">⚓</text>`;
+  }
+
+  // Hit flame (sunk)
+  let flames='';
+  if(isSunk){
+    flames=`<ellipse cx="${W*0.4}" cy="${hullTop}" rx="${H*0.12}" ry="${H*0.08}" fill="rgba(200,80,0,0.55)"/>
+    <ellipse cx="${W*0.55}" cy="${hullTop+H*0.04}" rx="${H*0.08}" ry="${H*0.06}" fill="rgba(220,120,0,0.4)"/>`;
+  }
+
+  return `<svg viewBox="0 ${svgTop} ${W} ${svgH}" width="${W}" height="${svgH}"
+    style="position:absolute;left:0;bottom:0;overflow:visible;" xmlns="http://www.w3.org/2000/svg">
+    ${wakeEl}
+    <!-- Hull gradient via stops -->
+    <defs>
+      <linearGradient id="hg${length}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="${hull2}"/>
+        <stop offset="1" stop-color="${hull1}"/>
+      </linearGradient>
+    </defs>
+    <path d="${hull}" fill="url(#hg${length})" stroke="${cabinR}" stroke-width="${Math.max(1,H*0.04)}"/>
+    <path d="${waterline}" fill="${hull1}" opacity="0.7"/>
+    <path d="${deckPath}" fill="${deck}" opacity="0.9"/>
+    <path d="${stripePath}" fill="${stripe}" opacity="${isSunk?0.15:0.55}"/>
+    ${stacks}
+    <rect x="${cabX}" y="${cabY}" width="${cabW}" height="${cabH}" rx="${H*0.08}" fill="${cabin}"/>
+    <rect x="${cabX-H*0.02}" y="${cabY-H*0.06}" width="${cabW+H*0.04}" height="${H*0.09}" rx="${H*0.04}" fill="${cabinR}"/>
+    <!-- Bridge windows -->
+    <rect x="${cabX+cabW*0.12}" y="${cabY+cabH*0.15}" width="${cabW*0.35}" height="${cabH*0.3}" rx="${H*0.04}" fill="${porthole}" opacity="0.9"/>
+    <rect x="${cabX+cabW*0.55}" y="${cabY+cabH*0.15}" width="${cabW*0.3}" height="${cabH*0.3}" rx="${H*0.04}" fill="${porthole}" opacity="0.9"/>
+    ${turrets}
     ${portholes}
-    <rect x="${cabinX}" y="${cabinY}" width="${cabinW}" height="${cabinH}" rx="${H*0.06}" fill="${cabinCol}"/>
-    <rect x="${cabinX-H*0.02}" y="${cabinY-H*0.06}" width="${cabinW+H*0.04}" height="${H*0.09}" rx="${H*0.04}" fill="${cabinRoof}"/>
-    <line x1="${mastX}" y1="${H*0.5}" x2="${mastX}" y2="${mastTopY}" stroke="${mastCol}" stroke-width="${Math.max(1,H*0.045)}" stroke-linecap="round"/>
-    <path d="${sailPath}" fill="${sailCol}" stroke="${sailShade}" stroke-width="1"/>
-    <path d="${flagPath}" fill="${flagCol}"/>
-    <line x1="${bowFlagX}" y1="${bowY}" x2="${bowFlagX}" y2="${bowFlagTop}" stroke="${mastCol}" stroke-width="${Math.max(1,H*0.035)}" stroke-linecap="round"/>
-    <path d="M ${bowFlagX},${bowFlagTop} L ${bowFlagX+H*0.2},${bowFlagTop+H*0.08} L ${bowFlagX},${bowFlagTop+H*0.16} Z" fill="${flagCol}"/>
-    <ellipse cx="${W*0.4}" cy="${H*0.35}" rx="${W*0.18}" ry="${H*0.08}" fill="rgba(255,255,255,0.25)"/>
+    ${anchor}
+    ${flames}
+    <!-- Highlight sheen -->
+    <ellipse cx="${W*0.35}" cy="${H*0.32}" rx="${W*0.18}" ry="${H*0.07}" fill="rgba(255,255,255,${isSunk?0.04:0.14})"/>
   </svg>`;
 }
+  const W = length*cellSize, H = cellSize;
+  const bowY=H*0.5;
+  
 function drawHulls(boardEl, ships, sunkSet, cellSize, gapPx, padPx){
   ships.forEach(ship=>{
     const isSunk = ship.cells.every(c=>sunkSet.has(c));
@@ -537,7 +583,7 @@ function drawHulls(boardEl, ships, sunkSet, cellSize, gapPx, padPx){
 let prevOwnShots=null, prevEnemyShots=null;
 function renderOwnBoard(){
   ownBoardEl.innerHTML='';
-  const cellSize = Math.min(34, Math.floor((Math.min(window.innerWidth-24,460))/SIZE)-2);
+  const cellSize = Math.min(36, Math.floor((Math.min(window.innerWidth-24,480))/SIZE)-2);
   const gapPx=1.5, padPx=1.5;
   ownBoardEl.style.gridTemplateColumns=`repeat(${SIZE}, ${cellSize}px)`;
   const sunkSet = phase!=='placement' ? shipSegmentsSunk(myBoard, enemyShots) : new Set();
@@ -567,7 +613,7 @@ function renderOwnBoard(){
 }
 function renderEnemyBoard(){
   enemyBoardEl.innerHTML='';
-  const cellSize = Math.min(42, Math.floor((Math.min(window.innerWidth-24,500))/SIZE)-2);
+  const cellSize = Math.min(46, Math.floor((Math.min(window.innerWidth-24,520))/SIZE)-2);
   const gapPx=2, padPx=2;
   enemyBoardEl.style.gridTemplateColumns=`repeat(${SIZE}, ${cellSize}px)`;
   const enemyBoardForSunk = onlineMode ? (window.__enemyBoardCache||emptyBoard()) : (vsBot ? botBoard : emptyBoard());
@@ -790,6 +836,7 @@ function fireAtBot(i){
     const sunkSet=shipSegmentsSunk(botBoard, myShots);
     if(sunkSet.has(i)){
       haptic('sunk');
+      myShots=markSurroundingMisses(myShots,botBoard,sunkSet);
       setStatus('💥 '+shipNameAt(botBoard,i)+' потоплен!', '🎯 Твой ход!', 'mine');
     } else {
       haptic('hit');
@@ -1023,9 +1070,13 @@ function onlineFire(i){
   const hit = enemyBoardStr[i]==='S';
   const newMyShots = setChar(myShots, i, hit?'H':'M');
   const field = mySymbol==='X' ? 'shotsOnO' : 'shotsOnX';
-  const update = { [field]: newMyShots, turnStartedAt: Date.now() };
+  const update = { turnStartedAt: Date.now() };
   if(!hit) update.turn = oppSym;
-  const totalHits = countHits(enemyBoardStr, newMyShots);
+  const sunkAfter=shipSegmentsSunk(enemyBoardStr,newMyShots);
+  let finalShots=newMyShots;
+  if(hit&&sunkAfter.has(i)) finalShots=markSurroundingMisses(newMyShots,enemyBoardStr,sunkAfter);
+  update[field]=finalShots;
+  const totalHits = countHits(enemyBoardStr, finalShots);
   if(totalHits>=TOTAL_SHIP_CELLS){ update.status='finished'; update.winner=mySymbol; }
   db.ref('rooms/'+roomCode).update(update);
 }
