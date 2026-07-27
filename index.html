@@ -1,363 +1,668 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Игровой уголок</title>
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
-<style>
-  :root {
-    --sky-top: #BFF3E0;
-    --sky-bottom: #E9FBEF;
-    --plumbob-green: #35C57A;
-    --plumbob-green-dark: #1E9E5E;
-    --sim-blue: #4FB8E8;
-    --sim-purple: #A87BE0;
-    --sim-pink: #F58FB3;
-    --sim-yellow: #FFC94D;
-    --card-bg: #FFFFFF;
-    --ink: #1E4635;
-    --ink-soft: #4C7767;
-  }
-  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body {
-    margin: 0;
-    padding: 0;
-    min-height: 100vh;
-    font-family: 'Nunito', sans-serif;
-    color: var(--ink);
-    background: linear-gradient(180deg, var(--sky-top) 0%, var(--sky-bottom) 55%, #FFF7E0 100%);
-    overflow-x: hidden;
-  }
-  /* Плавающие частицы фона — как искры вокруг симов */
-  .particle {
-    position: fixed;
-    border-radius: 50%;
-    opacity: 0.5;
-    pointer-events: none;
-    animation: float-up linear infinite;
-  }
-  @keyframes float-up {
-    0%   { transform: translateY(0) rotate(0deg); opacity: 0; }
-    10%  { opacity: 0.55; }
-    90%  { opacity: 0.4; }
-    100% { transform: translateY(-110vh) rotate(360deg); opacity: 0; }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .particle { display: none; }
-  }
-  .wrap {
-    position: relative;
-    z-index: 1;
-    max-width: 480px;
-    margin: 0 auto;
-    padding: 28px 18px 40px;
-    min-height: 100vh;
-  }
-  /* Плюмбоб — сигнатурный элемент */
-  .plumbob {
-    width: 46px;
-    height: 46px;
-    margin: 0 auto 6px;
-    background: linear-gradient(135deg, var(--plumbob-green) 0%, #7BE3A6 100%);
-    transform: rotate(45deg);
-    border-radius: 8px;
-    box-shadow: 0 0 0 rgba(53,197,122,0.5);
-    animation: hover-bob 2.6s ease-in-out infinite, glow-pulse 2.6s ease-in-out infinite;
-  }
-  @keyframes hover-bob {
-    0%, 100% { transform: rotate(45deg) translateY(0); }
-    50%      { transform: rotate(45deg) translateY(-10px); }
-  }
-  @keyframes glow-pulse {
-    0%, 100% { box-shadow: 0 10px 18px -6px rgba(53,197,122,0.55); }
-    50%      { box-shadow: 0 22px 30px -8px rgba(53,197,122,0.75); }
-  }
-  .title {
-    text-align: center;
-    font-family: 'Baloo 2', sans-serif;
-    font-weight: 800;
-    font-size: 28px;
-    color: var(--ink);
-    margin: 10px 0 2px;
-    letter-spacing: 0.2px;
-  }
-  .subtitle {
-    text-align: center;
-    font-size: 14.5px;
-    color: var(--ink-soft);
-    font-weight: 600;
-    margin: 0 0 26px;
-  }
-  .grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 16px;
-  }
-  .card {
-    position: relative;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    background: var(--card-bg);
-    border-radius: 22px;
-    padding: 16px 18px;
-    text-decoration: none;
-    color: var(--ink);
-    box-shadow: 0 10px 0 rgba(0,0,0,0.05), 0 14px 24px -10px rgba(30,70,53,0.18);
-    border: 3px solid transparent;
-    transform: translateY(0);
-    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
-    opacity: 0;
-    animation: card-in 0.55s cubic-bezier(0.2,0.9,0.3,1.2) forwards;
-    cursor: pointer;
-  }
-  .card:nth-child(1) { animation-delay: 0.05s; }
-  .card:nth-child(2) { animation-delay: 0.15s; }
-  .card:nth-child(3) { animation-delay: 0.25s; }
-  .card:nth-child(4) { animation-delay: 0.35s; }
-  .card:nth-child(5) { animation-delay: 0.45s; }
-  @keyframes card-in {
-    from { opacity: 0; transform: translateY(18px) scale(0.96); }
-    to   { opacity: 1; transform: translateY(0) scale(1); }
-  }
-  .card:active {
-    transform: translateY(4px) scale(0.98);
-    box-shadow: 0 4px 0 rgba(0,0,0,0.05), 0 6px 14px -6px rgba(30,70,53,0.22);
-  }
-  .card.c-green  { border-color: rgba(53,197,122,0.0); }
-  .card.c-green:hover  { border-color: var(--plumbob-green); }
-  .card.c-blue:hover   { border-color: var(--sim-blue); }
-  .card.c-purple:hover { border-color: var(--sim-purple); }
-  .card.c-pink:hover   { border-color: var(--sim-pink); }
-  .card.c-orange:hover { border-color: var(--sim-yellow); }
-  .card.c-teal:hover   { border-color: #2FAE9E; }
-  .card.c-navy:hover   { border-color: #2C5F8A; }
-  .icon-badge {
-    flex: 0 0 auto;
-    width: 56px;
-    height: 56px;
-    border-radius: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 28px;
-    animation: badge-wiggle 3.4s ease-in-out infinite;
-  }
-  .card:nth-child(2) .icon-badge { animation-delay: 0.3s; }
-  .card:nth-child(3) .icon-badge { animation-delay: 0.6s; }
-  .card:nth-child(4) .icon-badge { animation-delay: 0.9s; }
-  .card:nth-child(5) .icon-badge { animation-delay: 1.2s; }
-  @keyframes badge-wiggle {
-    0%, 80%, 100% { transform: rotate(0deg); }
-    85% { transform: rotate(-8deg); }
-    92% { transform: rotate(8deg); }
-    96% { transform: rotate(-4deg); }
-  }
-  .c-green  .icon-badge { background: linear-gradient(135deg, #BFF3D5, #7BE3A6); }
-  .c-blue   .icon-badge { background: linear-gradient(135deg, #C9EBFB, #8FD6F5); }
-  .c-purple .icon-badge { background: linear-gradient(135deg, #E4D6FA, #C8A9F0); }
-  .c-pink   .icon-badge { background: linear-gradient(135deg, #FCDCE7, #F5AFC6); }
-  .c-orange .icon-badge { background: linear-gradient(135deg, #FFE9BF, #FFC94D); }
-  .c-teal   .icon-badge { background: linear-gradient(135deg, #BFF0EA, #2FAE9E); }
-  .c-navy   .icon-badge { background: linear-gradient(135deg, #BFD6EA, #2C5F8A); }
-  .card-text { flex: 1 1 auto; min-width: 0; }
-  .card-title {
-    font-family: 'Baloo 2', sans-serif;
-    font-weight: 700;
-    font-size: 17.5px;
-    margin: 0 0 2px;
-  }
-  .card-tag {
-    display: inline-block;
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    padding: 2px 8px;
-    border-radius: 20px;
-    margin-bottom: 4px;
-  }
-  .c-green  .card-tag { background: #E3FAEC; color: var(--plumbob-green-dark); }
-  .c-blue   .card-tag { background: #E4F6FD; color: #1B7FA8; }
-  .c-purple .card-tag { background: #F1E9FD; color: #7647B8; }
-  .c-pink   .card-tag { background: #FDEAF0; color: #C2507A; }
-  .c-orange .card-tag { background: #FFF3D9; color: #B5680C; }
-  .c-teal   .card-tag { background: #DFF7F3; color: #1E7A6E; }
-  .c-navy   .card-tag { background: #E1EBF5; color: #2C5F8A; }
-  .card-desc {
-    font-size: 12.5px;
-    color: var(--ink-soft);
-    font-weight: 600;
-    margin: 0;
-    line-height: 1.35;
-  }
-  .arrow {
-    flex: 0 0 auto;
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    background: rgba(30,70,53,0.06);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 15px;
-    color: var(--ink-soft);
-  }
-  .footer-note {
-    text-align: center;
-    margin-top: 30px;
-    font-size: 11.5px;
-    color: var(--ink-soft);
-    opacity: 0.75;
-    font-weight: 600;
-  }
-  .beta-banner {
-    margin-top: 18px;
-    background: linear-gradient(135deg, #FFF3D9, #FFE9BF);
-    border: 2px dashed #E8A317;
-    border-radius: 18px;
-    padding: 14px 16px;
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    text-align: left;
-    animation: card-in 0.55s cubic-bezier(0.2,0.9,0.3,1.2) forwards;
-    opacity: 0;
-    animation-delay: 0.4s;
-  }
-  .beta-banner .beta-emoji {
-    font-size: 22px;
-    line-height: 1;
-    flex: 0 0 auto;
-  }
-  .beta-banner .beta-text {
-    font-size: 12.5px;
-    font-weight: 700;
-    color: #7A5D06;
-    line-height: 1.45;
-  }
-  .beta-banner .beta-text b {
-    color: #B5680C;
-  }
-</style>
-</head>
-<body>
-<div class="wrap">
-  <div class="plumbob"></div>
-  <h1 class="title">Игровой уголок</h1>
-  <p class="subtitle">Выбери, во что сыграем</p>
-  <div class="grid">
-    <a class="card c-green" data-url="https://mrkemmerling12-dev.github.io/sims-menu/flappybird.html">
-      <div class="icon-badge">🐤</div>
-      <div class="card-text">
-        <span class="card-tag">Аркада</span>
-        <p class="card-title">Flappy Bird</p>
-        <p class="card-desc">Один тап — и птичка летит. Просто, но затягивает.</p>
-      </div>
-      <div class="arrow">▶</div>
-    </a>
-    <a class="card c-blue" data-url="https://mrkemmerling12-dev.github.io/sims-menu/tetris.html">
-      <div class="icon-badge">🧱</div>
-      <div class="card-text">
-        <span class="card-tag">Головоломка</span>
-        <p class="card-title">Тетрис</p>
-        <p class="card-desc">Собирай линии, тренируй реакцию и скорость мышления.</p>
-      </div>
-      <div class="arrow">▶</div>
-    </a>
-    <a class="card c-purple" data-url="https://mrkemmerling12-dev.github.io/sims-menu/tictactoe.html">
-      <div class="icon-badge">⭕</div>
-      <div class="card-text">
-        <span class="card-tag">Дуэль умов</span>
-        <p class="card-title">Крестики-Нолики</p>
-        <p class="card-desc">Быстрая партия на смекалку прямо в перерыве.</p>
-      </div>
-      <div class="arrow">▶</div>
-    </a>
-    <a class="card c-pink" data-url="https://mrkemmerling12-dev.github.io/sims-menu/snake.html">
-      <div class="icon-badge">🐍</div>
-      <div class="card-text">
-        <span class="card-tag">Ретро-классика</span>
-        <p class="card-title">Змейка</p>
-        <p class="card-desc">Собирай яблоки и не кусай себя за хвост.</p>
-      </div>
-      <div class="arrow">▶</div>
-    </a>
-    <!-- Временно скрыто из меню (Ретро-Бегун и 2048) — файлы остаются на GitHub,
-         вернём в меню, когда доделаем задуманные улучшения. -->
-    <a class="card c-navy" data-url="https://mrkemmerling12-dev.github.io/sims-menu/battleship.html">
-      <div class="icon-badge">🚢</div>
-      <div class="card-text">
-        <span class="card-tag">Онлайн вдвоём</span>
-        <p class="card-title">Морской бой</p>
-        <p class="card-desc">Расставь флот и потопи корабли соперника — в реальном времени с другом.</p>
-      </div>
-      <div class="arrow">▶</div>
-    </a>
-  </div>
-  <p class="footer-note">Хорошего перерыва! 🌿</p>
-  <div class="beta-banner">
-    <span class="beta-emoji">🚧</span>
-    <p class="beta-text">
-      Привет! Все игры пока в <b>тестовом режиме</b> — что-то может барахлить или измениться.
-      Если заметишь баг или есть идея, что улучшить — просто напиши об этом лично создателю бота 🙂
-    </p>
-  </div>
-  <a href="https://t.me/SuperSexyChat_bot?start=donate" class="beta-banner" style="border-color:#F5AFC6;background:linear-gradient(135deg,#FDEAF0,#FCDCE7);text-decoration:none;">
-    <span class="beta-emoji">💛</span>
-    <p class="beta-text" style="color:#C2507A;">
-      Нравятся игры? Можешь <b>поддержать проект звёздами Telegram</b> — жми сюда, чтобы задонатить прямо в чате с ботом.
-    </p>
-  </a>
-</div>
-<script>
-  document.addEventListener("DOMContentLoaded", function() {
-    // Проверяем наличие Telegram SDK
-    if (window.Telegram && window.Telegram.WebApp) {
-      const tg = window.Telegram.WebApp;
-      tg.ready();
-      tg.expand(); // Разворачиваем приложение на весь экран
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Игровой уголок</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@500;600;700&family=Russo+One&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --space: #111d2d;
+      --space-deep: #08111d;
+      --paper: #f6e8bd;
+      --ink: #14202b;
+      --cream: #fff5cf;
+      --red: #d8422c;
+      --gold: #f3bc37;
+      --cyan: #55d8df;
+      --pink: #df5b9f;
     }
 
-    // ФИКС: стили .particle были в CSS, но сами частицы никто не создавал —
-    // теперь фоновые искры действительно появляются
-    (function spawnParticles(){
-      if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-      const colors = ['#7BE3A6', '#8FD6F5', '#C8A9F0', '#F5AFC6', '#FFC94D'];
-      const count = 18;
-      const frag = document.createDocumentFragment();
-      for (let i = 0; i < count; i++) {
-        const p = document.createElement('div');
-        p.className = 'particle';
-        const size = 4 + Math.random() * 8;
-        p.style.width = size + 'px';
-        p.style.height = size + 'px';
-        p.style.background = colors[Math.floor(Math.random() * colors.length)];
-        p.style.left = (Math.random() * 100) + 'vw';
-        p.style.bottom = '-20px';
-        p.style.animationDuration = (11 + Math.random() * 12) + 's';
-        p.style.animationDelay = (-Math.random() * 16) + 's';
-        frag.appendChild(p);
-      }
-      document.body.appendChild(frag);
-    })();
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
 
-    // Находим все карточки на странице
-    const cards = document.querySelectorAll('.card');
-    cards.forEach(card => {
-      card.addEventListener('click', function(e) {
-        e.preventDefault(); // Защита от стандартных переходов
-        const url = this.getAttribute('data-url');
-        if (url) {
-          // Переходим на страницу игры прямо внутри Telegram, без внешнего браузера
-          window.location.href = url;
-        }
+    html, body {
+      margin: 0;
+      min-height: 100%;
+    }
+
+    body {
+      min-width: 320px;
+      overflow-x: hidden;
+      color: var(--cream);
+      font-family: "Rubik", sans-serif;
+      background-color: var(--space-deep);
+      background-image:
+        radial-gradient(circle at 8% 12%, #f6e8bd 0 1px, transparent 1.8px),
+        radial-gradient(circle at 82% 8%, #f3bc37 0 1.5px, transparent 2.2px),
+        radial-gradient(circle at 13% 45%, #69dae0 0 1px, transparent 1.8px),
+        radial-gradient(circle at 91% 52%, #f6e8bd 0 1px, transparent 1.8px),
+        radial-gradient(circle at 25% 81%, #f3bc37 0 1.5px, transparent 2.2px),
+        radial-gradient(circle at 72% 87%, #69dae0 0 1px, transparent 1.8px),
+        linear-gradient(165deg, #1b3546 0%, var(--space) 52%, var(--space-deep) 100%);
+      background-size: 145px 155px, 177px 173px, 211px 218px, 189px 199px, 253px 239px, 181px 201px, auto;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      opacity: 0.22;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.52'/%3E%3C/svg%3E");
+    }
+
+    body::after {
+      content: "";
+      position: fixed;
+      z-index: 0;
+      top: 19%;
+      left: 50%;
+      width: min(92vw, 510px);
+      height: 430px;
+      pointer-events: none;
+      transform: translateX(-50%);
+      background:
+        radial-gradient(ellipse at 50% 34%, rgba(85, 216, 223, 0.16), transparent 43%),
+        radial-gradient(ellipse at 50% 76%, rgba(223, 91, 159, 0.12), transparent 52%);
+      filter: blur(13px);
+    }
+
+    .wrap {
+      position: relative;
+      z-index: 1;
+      width: min(100%, 500px);
+      margin: auto;
+      padding: 19px 15px calc(32px + env(safe-area-inset-bottom));
+    }
+
+    .space-decor {
+      position: fixed;
+      z-index: 0;
+      inset: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .planet,
+    .orbit,
+    .starburst {
+      position: absolute;
+    }
+
+    .planet {
+      border: 3px solid var(--ink);
+      border-radius: 50%;
+      box-shadow:
+        inset -11px -10px 0 rgba(8, 17, 29, 0.28),
+        0 0 18px var(--planet-glow);
+    }
+
+    .planet::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: -22%;
+      width: 144%;
+      height: 15px;
+      border: 2px solid var(--ink);
+      border-radius: 50%;
+      transform: rotate(-19deg);
+      opacity: 0.7;
+    }
+
+    .planet--one {
+      --planet-glow: rgba(85, 216, 223, 0.53);
+      top: 13%;
+      right: -26px;
+      width: 69px;
+      height: 69px;
+      background: #4faec7;
+    }
+
+    .planet--two {
+      --planet-glow: rgba(237, 112, 44, 0.48);
+      top: 61%;
+      left: -31px;
+      width: 78px;
+      height: 78px;
+      background: #d96437;
+    }
+
+    .planet--three {
+      --planet-glow: rgba(223, 91, 159, 0.45);
+      right: -20px;
+      bottom: 9%;
+      width: 51px;
+      height: 51px;
+      background: #a66da4;
+    }
+
+    .orbit {
+      width: 295px;
+      height: 125px;
+      border: 1px solid rgba(85, 216, 223, 0.28);
+      border-radius: 50%;
+      transform: rotate(-28deg);
+    }
+
+    .orbit--one {
+      top: 25%;
+      left: -116px;
+    }
+
+    .orbit--two {
+      right: -137px;
+      bottom: 17%;
+      border-color: rgba(243, 188, 55, 0.23);
+      transform: rotate(35deg);
+    }
+
+    .starburst {
+      color: var(--star-color);
+      font-size: var(--star-size);
+      line-height: 1;
+      text-shadow: 0 0 10px var(--star-color);
+    }
+
+    .starburst--one {
+      --star-color: #f3bc37;
+      --star-size: 25px;
+      top: 33%;
+      left: 9%;
+    }
+
+    .starburst--two {
+      --star-color: #55d8df;
+      --star-size: 19px;
+      top: 49%;
+      right: 8%;
+    }
+
+    .starburst--three {
+      --star-color: #df5b9f;
+      --star-size: 15px;
+      right: 14%;
+      bottom: 28%;
+    }
+
+    .lower-horizon {
+      position: fixed;
+      z-index: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      height: 235px;
+      overflow: hidden;
+      pointer-events: none;
+      background: linear-gradient(to bottom, transparent, rgba(8, 17, 29, 0.36) 30%, rgba(8, 17, 29, 0.92));
+    }
+
+    .lower-horizon::before {
+      content: "";
+      position: absolute;
+      right: -3%;
+      bottom: 74px;
+      left: -3%;
+      height: 97px;
+      opacity: 0.68;
+      background: linear-gradient(to bottom, transparent 0 25%, #132b3b 26% 100%);
+      clip-path: polygon(0 100%,0 48%,5% 48%,5% 23%,10% 23%,10% 63%,15% 63%,15% 33%,20% 33%,20% 51%,25% 51%,25% 15%,30% 15%,30% 42%,35% 42%,35% 29%,40% 29%,40% 58%,46% 58%,46% 21%,51% 21%,51% 46%,57% 46%,57% 10%,62% 10%,62% 52%,68% 52%,68% 31%,73% 31%,73% 60%,78% 60%,78% 19%,84% 19%,84% 44%,90% 44%,90% 26%,95% 26%,95% 54%,100% 54%,100% 100%);
+      box-shadow: 0 -3px 13px rgba(85, 216, 223, 0.35);
+    }
+
+    .lower-horizon::after {
+      content: "";
+      position: absolute;
+      right: -35%;
+      bottom: -88px;
+      left: -35%;
+      height: 176px;
+      opacity: 0.5;
+      transform: perspective(140px) rotateX(58deg);
+      transform-origin: bottom;
+      background-image:
+        linear-gradient(rgba(85, 216, 223, 0.66) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(85, 216, 223, 0.62) 1px, transparent 1px);
+      background-size: 100% 24px, 30px 100%;
+    }
+
+    .hero {
+      position: relative;
+      padding: 13px 10px 18px;
+      text-align: center;
+    }
+
+    .hero::before,
+    .hero::after {
+      content: "✦";
+      position: absolute;
+      color: var(--gold);
+      font-size: 26px;
+      text-shadow: 0 0 11px rgba(243, 188, 55, 0.65);
+    }
+
+    .hero::before {
+      top: 11px;
+      left: 7px;
+    }
+
+    .hero::after {
+      top: 32px;
+      right: 7px;
+      font-size: 17px;
+    }
+
+    .eyebrow {
+      margin: 0 0 7px;
+      color: #a5eef1;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      font-family: "Russo One", sans-serif;
+      font-size: clamp(26px, 8vw, 36px);
+      line-height: 1.15;
+      letter-spacing: 0.3px;
+      color: var(--red);
+      -webkit-text-stroke: 2px var(--gold);
+      text-shadow:
+        3px 3px 0 #631e1d,
+        5px 5px 0 var(--ink),
+        0 0 16px rgba(237, 112, 44, 0.25);
+    }
+
+    .grid {
+      display: grid;
+      gap: 13px;
+    }
+
+    .card {
+      --tone: #e77033;
+      --tone-dark: #9e3528;
+      --glow: rgba(237, 112, 44, 0.22);
+
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-height: 96px;
+      padding: 10px 11px 10px 13px;
+      overflow: hidden;
+      color: var(--ink);
+      text-decoration: none;
+      border: 3px solid var(--ink);
+      border-radius: 9px 18px 11px 16px;
+      background:
+        linear-gradient(100deg, transparent 0 67%, rgba(255, 255, 255, 0.38) 67.5% 68.5%, transparent 69%),
+        rgba(246, 232, 189, 0.87);
+      box-shadow:
+        0 5px 0 var(--ink),
+        0 10px 17px var(--glow),
+        inset 0 1px 0 rgba(255, 255, 255, 0.58);
+      animation: arrival 0.42s cubic-bezier(0.18, 0.88, 0.42, 1.15) both;
+    }
+
+    .card:nth-child(2) {
+      border-radius: 18px 9px 16px 11px;
+      animation-delay: 0.07s;
+    }
+
+    .card:nth-child(3) {
+      border-radius: 12px 17px 9px 18px;
+      animation-delay: 0.14s;
+    }
+
+    .card:nth-child(4) {
+      border-radius: 16px 10px 18px 8px;
+      animation-delay: 0.21s;
+    }
+
+    .card:nth-child(5) {
+      border-radius: 10px 19px 14px 8px;
+      animation-delay: 0.28s;
+    }
+
+    @keyframes arrival {
+      from {
+        opacity: 0;
+        transform: translateY(20px) rotate(-1deg);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) rotate(0);
+      }
+    }
+
+    .card:active {
+      transform: translateY(4px);
+      box-shadow:
+        0 1px 0 var(--ink),
+        0 4px 9px var(--glow);
+    }
+
+    .c-green {
+      --tone: #62bc76;
+      --tone-dark: #306754;
+      --glow: rgba(98, 188, 118, 0.25);
+    }
+
+    .c-blue {
+      --tone: #4faec7;
+      --tone-dark: #265b86;
+      --glow: rgba(79, 174, 199, 0.27);
+    }
+
+    .c-purple {
+      --tone: #a66da4;
+      --tone-dark: #67466d;
+      --glow: rgba(166, 109, 164, 0.24);
+    }
+
+    .c-pink {
+      --tone: #d95b6d;
+      --tone-dark: #873d54;
+      --glow: rgba(217, 91, 109, 0.23);
+    }
+
+    .c-navy {
+      --tone: #396f99;
+      --tone-dark: #1d3a64;
+      --glow: rgba(85, 216, 223, 0.23);
+    }
+
+    .icon-badge {
+      position: relative;
+      flex: 0 0 auto;
+      display: grid;
+      place-items: center;
+      width: 60px;
+      height: 60px;
+      color: var(--cream);
+      border: 3px solid var(--ink);
+      border-radius: 50% 47% 51% 46%;
+      background: radial-gradient(circle at 32% 25%, #fff4bf 0 4%, var(--tone) 5% 63%, var(--tone-dark) 64%);
+      box-shadow: inset -5px -5px 0 rgba(20, 32, 43, 0.17);
+      font-size: 30px;
+      transform: rotate(-6deg);
+    }
+
+    .card:nth-child(even) .icon-badge {
+      transform: rotate(6deg);
+    }
+
+    .icon-badge::after {
+      content: "";
+      position: absolute;
+      inset: -5px;
+      border: 1px dashed var(--tone-dark);
+      border-radius: inherit;
+      opacity: 0.65;
+    }
+
+    .card-text {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .card-tag {
+      display: inline-block;
+      padding: 2px 6px 3px;
+      color: var(--cream);
+      background: var(--tone-dark);
+      font-size: 9px;
+      font-weight: 700;
+      line-height: 1;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      transform: skewX(-7deg);
+    }
+
+    .card-title {
+      display: block;
+      margin: 4px 0 1px;
+      font-family: "Russo One", sans-serif;
+      font-size: clamp(15px, 4.5vw, 18px);
+      line-height: 1.08;
+      letter-spacing: -0.3px;
+    }
+
+    .card-desc {
+      display: block;
+      margin: 0;
+      color: #49515a;
+      font-size: 11px;
+      font-weight: 600;
+      line-height: 1.25;
+    }
+
+    .arrow {
+      flex: 0 0 auto;
+      display: grid;
+      place-items: center;
+      width: 32px;
+      height: 32px;
+      color: var(--ink);
+      border: 3px solid var(--ink);
+      border-radius: 50%;
+      background: rgba(243, 188, 55, 0.82);
+      box-shadow:
+        2px 2px 0 var(--tone-dark),
+        0 0 10px rgba(243, 188, 55, 0.32);
+      font-size: 14px;
+    }
+
+    .online-note {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 18px 2px 15px;
+      padding: 10px 12px;
+      color: #bffcff;
+      border: 2px solid rgba(85, 216, 223, 0.7);
+      border-radius: 10px 15px 11px 14px;
+      background: rgba(12, 35, 51, 0.72);
+      box-shadow:
+        0 0 15px rgba(85, 216, 223, 0.18),
+        inset 0 0 13px rgba(85, 216, 223, 0.08);
+    }
+
+    .online-note__signal {
+      flex: 0 0 auto;
+      display: grid;
+      place-items: center;
+      width: 28px;
+      height: 28px;
+      color: var(--ink);
+      border: 2px solid var(--ink);
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 10px rgba(85, 216, 223, 0.7);
+      font-size: 15px;
+    }
+
+    .online-note p {
+      margin: 0;
+      font-size: 11.5px;
+      font-weight: 600;
+      line-height: 1.3;
+    }
+
+    .online-note strong {
+      color: var(--gold);
+      font-weight: 700;
+    }
+
+    .notice {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-top: 11px;
+      padding: 12px 12px 12px 11px;
+      color: var(--ink);
+      text-decoration: none;
+      border: 3px solid var(--ink);
+      border-radius: 8px 15px 9px 13px;
+      background: rgba(245, 207, 102, 0.87);
+      box-shadow:
+        0 4px 0 var(--ink),
+        0 0 14px rgba(243, 188, 55, 0.12);
+    }
+
+    .notice--support {
+      background: rgba(233, 113, 137, 0.87);
+    }
+
+    .notice-icon {
+      flex: 0 0 auto;
+      font-size: 22px;
+      line-height: 1;
+    }
+
+    .notice p {
+      margin: 0;
+      font-size: 11.5px;
+      font-weight: 600;
+      line-height: 1.36;
+    }
+
+    .notice b {
+      font-weight: 700;
+    }
+
+    @media (hover: hover) {
+      .card {
+        transition: transform 0.16s ease, filter 0.16s ease;
+      }
+
+      .card:hover {
+        filter: brightness(1.06);
+        transform: translateY(-3px) rotate(-0.35deg);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="space-decor" aria-hidden="true">
+    <i class="planet planet--one"></i>
+    <i class="planet planet--two"></i>
+    <i class="planet planet--three"></i>
+    <i class="orbit orbit--one"></i>
+    <i class="orbit orbit--two"></i>
+    <i class="starburst starburst--one">✦</i>
+    <i class="starburst starburst--two">✦</i>
+    <i class="starburst starburst--three">✦</i>
+  </div>
+
+  <div class="lower-horizon" aria-hidden="true"></div>
+
+  <main class="wrap">
+    <header class="hero">
+      <p class="eyebrow">2026</p>
+      <h1>ИГРОВОЙ УГОЛОК</h1>
+    </header>
+
+    <section class="grid" aria-label="Игры">
+      <a class="card c-green" data-url="https://mrkemmerling12-dev.github.io/sims-menu/flappybird.html" href="https://mrkemmerling12-dev.github.io/sims-menu/flappybird.html">
+        <span class="icon-badge">🐤</span>
+        <span class="card-text">
+          <span class="card-tag">Аркада</span>
+          <span class="card-title">Flappy Bird</span>
+          <span class="card-desc">Один тап — и птичка летит. Просто, но затягивает.</span>
+        </span>
+        <span class="arrow" aria-hidden="true">▶</span>
+      </a>
+
+      <a class="card c-blue" data-url="https://mrkemmerling12-dev.github.io/sims-menu/tetris.html" href="https://mrkemmerling12-dev.github.io/sims-menu/tetris.html">
+        <span class="icon-badge">🧱</span>
+        <span class="card-text">
+          <span class="card-tag">Головоломка</span>
+          <span class="card-title">Тетрис</span>
+          <span class="card-desc">Собирай линии, тренируй реакцию и скорость мышления.</span>
+        </span>
+        <span class="arrow" aria-hidden="true">▶</span>
+      </a>
+
+      <a class="card c-purple" data-url="https://mrkemmerling12-dev.github.io/sims-menu/tictactoe.html" href="https://mrkemmerling12-dev.github.io/sims-menu/tictactoe.html">
+        <span class="icon-badge">⭕</span>
+        <span class="card-text">
+          <span class="card-tag">Дуэль умов</span>
+          <span class="card-title">Крестики-нолики</span>
+          <span class="card-desc">Быстрая партия на смекалку прямо в перерыве.</span>
+        </span>
+        <span class="arrow" aria-hidden="true">▶</span>
+      </a>
+
+      <a class="card c-pink" data-url="https://mrkemmerling12-dev.github.io/sims-menu/snake.html" href="https://mrkemmerling12-dev.github.io/sims-menu/snake.html">
+        <span class="icon-badge">🐍</span>
+        <span class="card-text">
+          <span class="card-tag">Ретро-классика</span>
+          <span class="card-title">Змейка</span>
+          <span class="card-desc">Собирай яблоки и не кусай себя за хвост.</span>
+        </span>
+        <span class="arrow" aria-hidden="true">▶</span>
+      </a>
+
+      <a class="card c-navy" data-url="https://mrkemmerling12-dev.github.io/sims-menu/battleship.html" href="https://mrkemmerling12-dev.github.io/sims-menu/battleship.html">
+        <span class="icon-badge">🚢</span>
+        <span class="card-text">
+          <span class="card-tag">Онлайн вдвоём</span>
+          <span class="card-title">Морской бой</span>
+          <span class="card-desc">Расставь флот и потопи корабли соперника в реальном времени.</span>
+        </span>
+        <span class="arrow" aria-hidden="true">▶</span>
+      </a>
+    </section>
+
+    <aside class="online-note">
+      <span class="online-note__signal">⚡</span>
+      <p><strong>Онлайн-режим:</strong> «Крестики-нолики» и «Морской бой» — играйте вместе с друзьями.</p>
+    </aside>
+
+    <aside class="notice">
+      <span class="notice-icon">🚧</span>
+      <p>Все игры пока в <b>тестовом режиме</b>. Нашли баг или придумали классную идею? Напишите создателю бота 🙂</p>
+    </aside>
+
+    <a class="notice notice--support" href="https://t.me/SuperSexyChat_bot?start=donate">
+      <span class="notice-icon">💛</span>
+      <p>Нравятся игры? Поддержите проект <b>звёздами Telegram</b> — открыть чат с ботом.</p>
+    </a>
+  </main>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      if (window.Telegram?.WebApp) {
+        window.Telegram.WebApp.ready();
+        window.Telegram.WebApp.expand();
+      }
+
+      document.querySelectorAll(".card[data-url]").forEach((card) => {
+        card.addEventListener("click", (event) => {
+          event.preventDefault();
+          window.location.href = card.dataset.url;
+        });
       });
     });
-  });
-</script>
+  </script>
 </body>
 </html>
