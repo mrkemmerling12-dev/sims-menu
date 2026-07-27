@@ -16,17 +16,18 @@
     touch-action:none;overscroll-behavior:none;
     background:linear-gradient(180deg,#BFE0F0 0%,#E9F5FB 55%,#FFF7E0 100%);overflow:hidden;}
   .wrap{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;padding:66px 12px 12px;overflow-y:auto;}
-  .icon-btn{position:fixed;width:42px;height:42px;border-radius:50%;background:#0f1710;
-    display:flex;align-items:center;justify-content:center;text-decoration:none;color:var(--ink);
-    z-index:20;border:2px solid #35C57A;
-    box-shadow:0 6px 0 rgba(0,0,0,0.25),0 8px 14px -6px rgba(0,0,0,0.4), 0 0 14px rgba(53,197,122,0.55);
-    animation:pentagram-glow 2.4s ease-in-out infinite;}
-  .icon-btn:active{transform:translateY(3px);}
-  .icon-btn svg{width:20px;height:20px;filter:drop-shadow(0 0 3px rgba(53,197,122,0.9));}
+  .icon-btn{position:fixed;width:44px;height:44px;border-radius:50%;
+    background:linear-gradient(135deg,#2C5F8A,#1B3F5C);
+    display:flex;align-items:center;justify-content:center;text-decoration:none;color:#fff;
+    z-index:20;border:2px solid #5B8EB5;
+    box-shadow:0 5px 0 #163049, 0 8px 14px -6px rgba(0,0,0,0.4), 0 0 14px rgba(91,142,181,0.5);
+    animation:wave-glow 2.6s ease-in-out infinite;}
+  .icon-btn:active{transform:translateY(3px);box-shadow:0 2px 0 #163049, 0 4px 10px -6px rgba(0,0,0,0.4), 0 0 10px rgba(91,142,181,0.5);}
+  .icon-btn svg{width:20px;height:20px;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.35));}
   .back-btn{top:12px;left:12px;}
-  @keyframes pentagram-glow{
-    0%,100%{ box-shadow:0 6px 0 rgba(0,0,0,0.25),0 8px 14px -6px rgba(0,0,0,0.4), 0 0 10px rgba(53,197,122,0.45); }
-    50%{ box-shadow:0 6px 0 rgba(0,0,0,0.25),0 8px 14px -6px rgba(0,0,0,0.4), 0 0 20px rgba(53,197,122,0.85); }
+  @keyframes wave-glow{
+    0%,100%{ box-shadow:0 5px 0 #163049, 0 8px 14px -6px rgba(0,0,0,0.4), 0 0 12px rgba(91,142,181,0.45); }
+    50%{ box-shadow:0 5px 0 #163049, 0 8px 14px -6px rgba(0,0,0,0.4), 0 0 22px rgba(91,142,181,0.85); }
   }
   h1{font-family:'Baloo 2',sans-serif;font-weight:800;font-size:20px;margin:0 0 6px;text-align:center;}
   .turn-banner{font-family:'Baloo 2',sans-serif;font-weight:800;font-size:16px;text-align:center;
@@ -74,6 +75,19 @@
   .cell.hit-cell{background:#E85E5E;}
   .cell.sunk-cell{background:#3D3D46;}
   .cell.sunk-cell::after{content:'☠';color:#fff;font-size:65%;z-index:6;}
+  /* ---------- Брызги при промахе (splash) ---------- */
+  .splash{position:absolute;inset:0;pointer-events:none;z-index:7;overflow:visible;}
+  .splash .drop{position:absolute;left:50%;top:50%;width:14%;height:14%;border-radius:50%;
+    background:radial-gradient(circle,#eaf7ff 0%,#8fc7e8 60%,rgba(143,199,232,0) 100%);
+    animation:splash-drop 0.6s ease-out forwards;}
+  .splash .wave{position:absolute;left:50%;top:50%;width:20%;height:20%;border-radius:50%;
+    border:2px solid rgba(180,224,255,0.85);transform:translate(-50%,-50%);
+    animation:splash-wave 0.6s ease-out forwards;}
+  @keyframes splash-wave{from{width:12%;height:12%;opacity:0.9;} to{width:130%;height:130%;opacity:0;}}
+  @keyframes splash-drop{
+    0%{transform:translate(-50%,-50%) scale(0.6);opacity:1;}
+    100%{opacity:0;}
+  }
   .btn-row{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:6px;margin-bottom:10px;}
   .btn-main{background:linear-gradient(135deg,var(--navy),#5B8EB5);border:none;color:#fff;font-family:'Baloo 2',sans-serif;
     font-weight:700;font-size:14px;padding:10px 18px;border-radius:14px;box-shadow:0 6px 0 var(--navy-dark);}
@@ -94,15 +108,33 @@
   .code-display{font-family:'Baloo 2',sans-serif;font-weight:800;font-size:30px;letter-spacing:6px;color:var(--navy-dark);
     background:#E1EBF5;border-radius:14px;padding:12px;margin-bottom:10px;}
   .close-x{position:absolute;top:12px;right:16px;font-size:19px;color:var(--ink-soft);background:none;border:none;}
+  /* ---------- Панель эмодзи-реакций ---------- */
+  .react-bar{display:none;justify-content:center;gap:6px;flex-wrap:wrap;margin:2px 0 10px;}
+  .react-bar.show{display:flex;}
+  .react-btn{width:40px;height:40px;border-radius:50%;border:2px solid #5B8EB5;background:#fff;
+    font-size:20px;line-height:1;display:flex;align-items:center;justify-content:center;
+    box-shadow:0 4px 8px -4px rgba(14,42,61,0.3);transition:transform 0.12s;}
+  .react-btn:active{transform:scale(0.85);}
+  .react-btn:disabled{opacity:0.4;}
+  /* Летящие вверх реакции */
+  .react-layer{position:fixed;left:0;right:0;bottom:0;height:60vh;pointer-events:none;z-index:40;overflow:hidden;}
+  .react-fly{position:absolute;bottom:0;font-size:40px;will-change:transform,opacity;
+    animation:react-rise 2.4s ease-out forwards;}
+  @keyframes react-rise{
+    0%{transform:translateY(0) scale(0.4);opacity:0;}
+    15%{transform:translateY(-8vh) scale(1.1);opacity:1;}
+    75%{opacity:1;}
+    100%{transform:translateY(-58vh) scale(0.9);opacity:0;}
+  }
 </style>
 </head>
 <body>
 <a class="icon-btn back-btn" href="index.html">
   <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="50" cy="50" r="46" fill="none" stroke="#35C57A" stroke-width="3" opacity="0.5"/>
-    <path d="M60 20 L32 50 L60 80" fill="none" stroke="#35C57A" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M60 20 L32 50 L60 80" fill="none" stroke="#fff" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>
 </a>
+<div class="react-layer" id="reactLayer"></div>
 <div class="wrap">
   <h1>🚢 Морской бой</h1>
   <div id="onlineBadge"></div>
@@ -116,6 +148,7 @@
   <div class="turn-banner" id="turnBanner">Расставь флот ⚓</div>
   <div id="turnTimer" style="font-size:11px;font-weight:700;color:var(--ink-soft);margin-bottom:6px;min-height:14px;"></div>
   <div id="disconnectBanner" style="display:none;background:#FFE0E0;color:#B5312A;font-weight:700;font-size:12px;padding:6px 12px;border-radius:12px;margin-bottom:8px;"></div>
+  <div class="react-bar" id="reactBar"></div>
   <div class="board-section">
     <span class="board-label">Твой флот</span>
     <div class="board own" id="ownBoard"></div>
@@ -269,7 +302,6 @@ const ownBoardEl=document.getElementById('ownBoard');
 const statusSmallEl=document.getElementById('statusSmall');
 const turnBannerEl=document.getElementById('turnBanner');
 function setStatus(msg, bannerMsg, mode){
-  // mode: 'mine' | 'theirs' | 'neutral'
   statusSmallEl.textContent = msg || '';
   if(bannerMsg!==undefined){
     turnBannerEl.textContent = bannerMsg;
@@ -278,7 +310,6 @@ function setStatus(msg, bannerMsg, mode){
     else if(mode==='theirs') turnBannerEl.classList.add('theirs');
   }
 }
-// statusEl оставлен для обратной совместимости со старым кодом
 const statusEl={ set textContent(v){ setStatus(v); } };
 function shipSegmentsSunk(boardStr, shotsStr){
   const visited=new Set(), sunk=new Set();
@@ -307,7 +338,7 @@ function countHits(boardStr, shotsStr){
 function shipsRemainingByClass(boardStr, shotsStr){
   const ships=getShips(boardStr);
   const sunkSet=shipSegmentsSunk(boardStr, shotsStr);
-  const counts={}; // length -> {total, alive}
+  const counts={};
   SHIP_LENGTHS.forEach(len=>{ counts[len]=counts[len]||{total:0,alive:0}; counts[len].total++; });
   ships.forEach(ship=>{
     const isSunk = ship.cells.every(c=>sunkSet.has(c));
@@ -319,7 +350,6 @@ function fleetChipsHtml(counts, label){
   const parts = Object.keys(counts).sort((a,b)=>b-a).map(len=>{
     const c=counts[len];
     const name = SHIP_NAMES[len] || (len+'-палубный');
-    const dead = c.total-c.alive;
     return `<span class="ship-chip${c.alive===0?' sunk':''}">${name} ${c.alive}/${c.total}</span>`;
   }).join('');
   return `<div class="fleet-row"><span class="fleet-label">${label}</span><div class="fleet-chips">${parts}</div></div>`;
@@ -489,6 +519,9 @@ function renderOwnBoard(){
       ex.innerHTML='<div class="ring"></div><div class="core"></div>';
       d.appendChild(ex);
     }
+    if(enemyShots[i]==='M' && (!prevOwnShots || prevOwnShots[i]!=='M')){
+      d.appendChild(makeSplash());
+    }
     if(phase==='placement' && manualMode){
       d.style.cursor='pointer';
       d.onclick=()=>placeNextShip(i);
@@ -517,6 +550,9 @@ function renderEnemyBoard(){
       ex.innerHTML='<div class="ring"></div><div class="core"></div>';
       d.appendChild(ex);
     }
+    if(myShots[i]==='M' && (!prevEnemyShots || prevEnemyShots[i]!=='M')){
+      d.appendChild(makeSplash());
+    }
     if(phase==='battle' && myTurn && myShots[i]==='.'){
       d.onclick=()=>fireAtEnemy(i);
     }
@@ -528,6 +564,29 @@ function renderEnemyBoard(){
     drawHulls(enemyBoardEl, sunkShips, sunkSet, cellSize, gapPx, padPx);
   }
   prevEnemyShots=myShots;
+}
+// Брызги при промахе: несколько капель в стороны + расходящаяся волна
+function makeSplash(){
+  const s=document.createElement('div');
+  s.className='splash';
+  let html='<div class="wave"></div>';
+  const dirs=[[-1,-1],[1,-1],[-1,1],[1,1],[0,-1.3],[0,1.3]];
+  dirs.forEach((d,k)=>{
+    const tx=d[0]*90, ty=d[1]*90;
+    html+=`<div class="drop" style="--tx:${tx}%;--ty:${ty}%;animation-delay:${(k*0.02).toFixed(2)}s;transform:translate(-50%,-50%);"></div>`;
+  });
+  s.innerHTML=html;
+  // задаём каждой капле индивидуальное направление разлёта
+  setTimeout(()=>{
+    s.querySelectorAll('.drop').forEach((dr,k)=>{
+      const d=dirs[k]||[0,0];
+      dr.animate([
+        {transform:'translate(-50%,-50%) scale(0.6)',opacity:1},
+        {transform:`translate(calc(-50% + ${d[0]*80}%), calc(-50% + ${d[1]*80}%)) scale(0.2)`,opacity:0}
+      ],{duration:520,easing:'ease-out',fill:'forwards'});
+    });
+  },0);
+  return s;
 }
 function renderAll(){
   renderOwnBoard();
@@ -630,6 +689,7 @@ function resetToPlacement(){
   document.getElementById('gameControls').style.display='none';
   document.getElementById('onlineBadge').innerHTML='';
   document.getElementById('enemyLabel').textContent='Поле соперника';
+  updateReactBar();
   setStatus('Расставь флот и нажми "Готов"', 'Расставь флот ⚓', 'neutral');
   if(roomRef){ roomRef.off(); roomRef=null; }
   roomCode=null; mySymbol=null;
@@ -643,6 +703,7 @@ function startBotGame(){
   document.getElementById('placementControls').style.display='none';
   document.getElementById('gameControls').style.display='flex';
   document.getElementById('enemyLabel').textContent='Поле бота 🤖';
+  updateReactBar();
   setStatus('', '🎯 Твой ход!', 'mine');
   renderAll();
 }
@@ -841,6 +902,8 @@ function startOnlineListener(code){
       }
       document.getElementById('onlineBadge').innerHTML = `<span class="online-badge">🟢 Онлайн: ты — ${mySymbol}, соперник — ${opponentName}</span>`;
       document.getElementById('enemyLabel').textContent='Поле соперника';
+      updateReactBar();
+      watchReactions();
       return;
     }
     if(data.status==='battle' || data.status==='finished'){
@@ -852,6 +915,8 @@ function startOnlineListener(code){
       enemyShots = mySymbol==='X' ? data.shotsOnX : data.shotsOnO;
       window.__enemyBoardCache = data.players[oppSym].board;
       myTurn = data.turn===mySymbol;
+      updateReactBar();
+      watchReactions();
       const oppConnected = data.players[oppSym] && data.players[oppSym].connected!==false;
       const discBanner=document.getElementById('disconnectBanner');
       if(!oppConnected && data.status==='battle'){
@@ -886,6 +951,7 @@ function enterPlacementUI(){
   phase='placement';
   document.getElementById('placementControls').style.display='flex';
   document.getElementById('gameControls').style.display='none';
+  updateReactBar();
   statusEl.textContent='Расставь флот и нажми "Готов"';
   renderAll();
 }
@@ -923,6 +989,65 @@ function onlineRematch(){
   updates['players/'+mySymbol+'/ready']=false;
   updates['players/'+mySymbol+'/board']=emptyBoard();
   db.ref('rooms/'+roomCode).update(updates);
+}
+// ---------- Эмодзи-реакции ----------
+// Смешанный набор: эмоции + морская тема
+const REACTIONS=['😂','😎','😱','🔥','👋','🤝','⚓','🌊','💣','🦈'];
+let reactCooldown=false, reactionsRef=null, lastReactionTs=0;
+function updateReactBar(){
+  const bar=document.getElementById('reactBar');
+  // реакции доступны только в онлайн-игре (не с ботом и не в одиночном экране)
+  if(!onlineMode){ bar.classList.remove('show'); bar.innerHTML=''; return; }
+  if(bar.dataset.built==='1'){ bar.classList.add('show'); return; }
+  bar.innerHTML='';
+  REACTIONS.forEach(em=>{
+    const b=document.createElement('button');
+    b.className='react-btn'; b.textContent=em;
+    b.onclick=()=>sendReaction(em);
+    bar.appendChild(b);
+  });
+  bar.dataset.built='1';
+  bar.classList.add('show');
+}
+function sendReaction(em){
+  if(!onlineMode || !roomCode || reactCooldown) return;
+  reactCooldown=true;
+  document.querySelectorAll('.react-btn').forEach(b=>b.disabled=true);
+  setTimeout(()=>{
+    reactCooldown=false;
+    document.querySelectorAll('.react-btn').forEach(b=>b.disabled=false);
+  }, 900);
+  // пишем реакцию в комнату; оба клиента её увидят через watchReactions
+  db.ref('rooms/'+roomCode+'/reaction').set({ emoji:em, from:ME.id, ts:Date.now() });
+}
+function watchReactions(){
+  if(!roomCode || reactionsRef) return;
+  reactionsRef=db.ref('rooms/'+roomCode+'/reaction');
+  reactionsRef.on('value', snap=>{
+    const r=snap.val();
+    if(!r || !r.ts || r.ts===lastReactionTs) return;
+    lastReactionTs=r.ts;
+    flyReaction(r.emoji);
+  });
+}
+// Эмодзи летит снизу вверх, как лайки в стримах
+function flyReaction(em){
+  const layer=document.getElementById('reactLayer');
+  if(!layer) return;
+  const count=1;
+  for(let k=0;k<count;k++){
+    const el=document.createElement('div');
+    el.className='react-fly';
+    el.textContent=em;
+    const leftBase = 30 + Math.random()*40;         // 30–70% ширины
+    el.style.left = leftBase.toFixed(1)+'%';
+    el.style.fontSize = (34 + Math.random()*14).toFixed(0)+'px';
+    // лёгкий горизонтальный дрейф через переменную
+    const drift = (Math.random()*40 - 20).toFixed(0);
+    el.style.setProperty('--drift', drift+'px');
+    layer.appendChild(el);
+    setTimeout(()=>el.remove(), 2500);
+  }
 }
 (function checkUrlRoom(){
   const params=new URLSearchParams(window.location.search);
