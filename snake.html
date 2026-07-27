@@ -6,70 +6,186 @@
 <title>Змейка</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Russo+One&family=Rubik:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
-  :root{--ink:#1E4635;--ink-soft:#4C7767;--pink:#F58FB3;--pink-dark:#C2507A;--card-bg:#FFFFFF;}
-  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;}
-  html,body{margin:0;padding:0;height:100%;width:100%;font-family:'Nunito',sans-serif;color:var(--ink);
-    touch-action:none;overscroll-behavior:none;
-    background:linear-gradient(180deg,#BFF3E0 0%,#E9FBEF 55%,#FFF7E0 100%);overflow:hidden;}
-  .wrap{position:fixed;inset:0;display:flex;flex-direction:column;}
-  /* Единый стиль кнопок со всеми остальными играми */
-  .icon-btn{position:fixed;width:42px;height:42px;border-radius:50%;background:#0f1710;
-    display:flex;align-items:center;justify-content:center;text-decoration:none;color:var(--ink);
-    z-index:20;border:2px solid #35C57A;
-    box-shadow:0 6px 0 rgba(0,0,0,0.25),0 8px 14px -6px rgba(0,0,0,0.4), 0 0 14px rgba(53,197,122,0.55);
-    animation:pentagram-glow 2.4s ease-in-out infinite;}
-  .icon-btn:active{transform:translateY(3px);}
-  .icon-btn svg{width:20px;height:20px;filter:drop-shadow(0 0 3px rgba(53,197,122,0.9));}
-  .back-btn{top:12px;left:12px;}
-  .pause-btn{top:12px;right:12px;}
-  @keyframes pentagram-glow{
-    0%,100%{ box-shadow:0 6px 0 rgba(0,0,0,0.25),0 8px 14px -6px rgba(0,0,0,0.4), 0 0 10px rgba(53,197,122,0.45); }
-    50%{ box-shadow:0 6px 0 rgba(0,0,0,0.25),0 8px 14px -6px rgba(0,0,0,0.4), 0 0 20px rgba(53,197,122,0.85); }
-  }
-  .hud{position:fixed;top:16px;left:64px;right:64px;display:flex;justify-content:space-between;align-items:center;
-    font-weight:700;font-size:13px;color:var(--ink-soft);z-index:20;}
-  .score-badge{background:#FDEAF0;color:var(--pink-dark);padding:5px 13px;border-radius:20px;font-family:'Baloo 2',sans-serif;
-    font-size:15px;box-shadow:0 4px 10px -4px rgba(30,70,53,0.3);transition:transform 0.2s;}
-  .score-badge.bump{transform:scale(1.25);}
-  .level-badge{background:#fff;padding:5px 13px;border-radius:20px;box-shadow:0 4px 10px -4px rgba(30,70,53,0.3);}
-  .board-holder{flex:1;display:flex;align-items:center;justify-content:center;min-height:0;position:relative;}
-  canvas{border-radius:0;touch-action:none;display:block;}
-  .hint{position:fixed;bottom:10px;left:0;right:0;text-align:center;font-weight:700;color:var(--ink-soft);font-size:12px;z-index:20;}
-  .overlay{position:fixed;inset:0;background:rgba(30,70,53,0.55);display:none;align-items:center;justify-content:center;z-index:30;}
-  .overlay.show{display:flex;}
-  .modal{background:var(--card-bg);border-radius:22px;padding:26px 24px;text-align:center;max-width:280px;
-    box-shadow:0 20px 40px -10px rgba(0,0,0,0.35);}
-  .modal h2{font-family:'Baloo 2',sans-serif;margin:0 0 8px;font-size:22px;color:var(--pink-dark);}
-  .modal p{font-weight:700;color:var(--ink-soft);margin:0 0 16px;}
-  .btn-main{background:linear-gradient(135deg,var(--pink),#FBC3D6);border:none;color:#fff;font-family:'Baloo 2',sans-serif;
-    font-weight:700;font-size:16px;padding:12px 26px;border-radius:16px;box-shadow:0 8px 0 var(--pink-dark);}
-  .btn-main:active{transform:translateY(4px);box-shadow:0 4px 0 var(--pink-dark);}
+:root {
+  --space:      #111d2d;
+  --space-deep: #08111d;
+  --ink:        #14202b;
+  --cream:      #fff5cf;
+  --paper:      #f6e8bd;
+  --red:        #d8422c;
+  --gold:       #f3bc37;
+  --cyan:       #55d8df;
+  --pink:       #df5b9f;
+  --green:      #62bc76;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+
+html, body {
+  margin: 0; padding: 0; height: 100%; width: 100%;
+  font-family: 'Rubik', sans-serif;
+  color: var(--cream);
+  touch-action: none;
+  overscroll-behavior: none;
+  overflow: hidden;
+  background-color: var(--space-deep);
+  background-image:
+    radial-gradient(circle at 8%  12%, #f6e8bd 0 1px,   transparent 1.8px),
+    radial-gradient(circle at 82%  8%, #f3bc37 0 1.5px, transparent 2.2px),
+    radial-gradient(circle at 13% 45%, #69dae0 0 1px,   transparent 1.8px),
+    radial-gradient(circle at 91% 52%, #f6e8bd 0 1px,   transparent 1.8px),
+    radial-gradient(circle at 25% 81%, #f3bc37 0 1.5px, transparent 2.2px),
+    radial-gradient(circle at 72% 87%, #69dae0 0 1px,   transparent 1.8px),
+    linear-gradient(165deg, #1b3546 0%, var(--space) 52%, var(--space-deep) 100%);
+  background-size: 145px 155px, 177px 173px, 211px 218px,
+                   189px 199px, 253px 239px, 181px 201px, auto;
+}
+
+/* Зернистая текстура как в меню */
+body::before {
+  content: "";
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  opacity: 0.18;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.52'/%3E%3C/svg%3E");
+}
+
+.wrap { position: fixed; inset: 0; display: flex; flex-direction: column; z-index: 1; }
+
+/* ---------- Кнопки навигации (в стиле меню) ---------- */
+.icon-btn {
+  position: fixed;
+  width: 42px; height: 42px; border-radius: 50%;
+  background: rgba(20, 32, 43, 0.88);
+  display: flex; align-items: center; justify-content: center;
+  text-decoration: none;
+  z-index: 20;
+  border: 3px solid var(--ink);
+  box-shadow: 0 4px 0 var(--ink), 0 6px 14px rgba(0,0,0,0.45);
+  transition: transform 0.12s;
+}
+.icon-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
+.icon-btn svg { width: 20px; height: 20px; }
+.back-btn  { top: 12px; left: 12px; }
+.pause-btn { top: 12px; right: 12px; }
+
+/* ---------- HUD ---------- */
+.hud {
+  position: fixed; top: 14px; left: 64px; right: 64px;
+  display: flex; justify-content: space-between; align-items: center;
+  z-index: 20;
+}
+
+.level-badge {
+  font-family: 'Rubik', sans-serif; font-weight: 600; font-size: 12px;
+  color: var(--ink);
+  background: var(--paper);
+  padding: 5px 13px; border-radius: 20px;
+  border: 2px solid var(--ink);
+  box-shadow: 0 3px 0 var(--ink);
+  letter-spacing: 0.3px;
+}
+
+.score-badge {
+  font-family: 'Russo One', sans-serif; font-size: 16px;
+  color: var(--ink);
+  background: var(--gold);
+  padding: 5px 14px; border-radius: 20px;
+  border: 2px solid var(--ink);
+  box-shadow: 0 3px 0 var(--ink);
+  transition: transform 0.15s;
+}
+.score-badge.bump { transform: scale(1.28); }
+
+/* ---------- Canvas ---------- */
+.board-holder {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  min-height: 0; position: relative;
+}
+canvas { touch-action: none; display: block; border-radius: 8px; }
+
+/* ---------- Подсказка снизу ---------- */
+.hint {
+  position: fixed; bottom: 10px; left: 0; right: 0;
+  text-align: center; font-size: 11.5px; font-weight: 500;
+  color: rgba(255,245,207,0.55); z-index: 20; letter-spacing: 0.3px;
+}
+
+/* ---------- Оверлей / модалка ---------- */
+.overlay {
+  position: fixed; inset: 0;
+  background: rgba(8,17,29,0.72);
+  display: none; align-items: center; justify-content: center; z-index: 30;
+  padding: 20px;
+}
+.overlay.show { display: flex; }
+
+.modal {
+  background: var(--paper);
+  color: var(--ink);
+  border: 3px solid var(--ink);
+  border-radius: 12px 20px 13px 18px;
+  padding: 26px 24px;
+  text-align: center; max-width: 280px; width: 100%;
+  box-shadow: 0 6px 0 var(--ink), 0 14px 30px rgba(0,0,0,0.5);
+}
+.modal h2 {
+  font-family: 'Russo One', sans-serif;
+  margin: 0 0 6px;
+  font-size: 22px;
+  color: var(--red);
+  -webkit-text-stroke: 1px var(--ink);
+  text-shadow: 2px 2px 0 rgba(20,32,43,0.25);
+}
+.modal p { font-weight: 600; color: #49515a; margin: 0 0 18px; font-size: 14px; }
+
+.btn-main {
+  background: var(--gold);
+  border: 3px solid var(--ink);
+  color: var(--ink);
+  font-family: 'Russo One', sans-serif;
+  font-size: 15px;
+  padding: 11px 26px;
+  border-radius: 10px 18px 11px 16px;
+  box-shadow: 0 5px 0 var(--ink);
+  cursor: pointer;
+  letter-spacing: 0.3px;
+}
+.btn-main:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--ink); }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
 </style>
 </head>
 <body>
-<a class="icon-btn back-btn" href="index.html">
+
+<a class="icon-btn back-btn" href="index.html" aria-label="Назад">
   <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="50" cy="50" r="46" fill="none" stroke="#35C57A" stroke-width="3" opacity="0.5"/>
-    <path d="M60 20 L32 50 L60 80" fill="none" stroke="#35C57A" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M60 20 L32 50 L60 80" fill="none" stroke="var(--cream)" stroke-width="10"
+          stroke-linecap="round" stroke-linejoin="round"/>
   </svg>
 </a>
-<button class="icon-btn pause-btn" id="pauseBtn">
+
+<button class="icon-btn pause-btn" id="pauseBtn" aria-label="Пауза">
   <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="50" cy="50" r="46" fill="none" stroke="#35C57A" stroke-width="3" opacity="0.5"/>
-    <rect x="34" y="28" width="12" height="44" fill="#35C57A"/>
-    <rect x="56" y="28" width="12" height="44" fill="#35C57A"/>
+    <rect x="28" y="24" width="14" height="52" rx="4" fill="var(--cream)"/>
+    <rect x="58" y="24" width="14" height="52" rx="4" fill="var(--cream)"/>
   </svg>
 </button>
+
 <div class="hud">
   <span class="level-badge" id="levelLabel">Уровень 1</span>
   <span class="score-badge" id="score">0</span>
 </div>
+
 <div class="wrap">
   <div class="board-holder"><canvas id="board"></canvas></div>
 </div>
+
 <p class="hint">Тапни в сторону, куда ползти, или свайпни</p>
+
 <div class="overlay" id="overlay">
   <div class="modal">
     <h2>Игра окончена 🍎</h2>
@@ -77,16 +193,19 @@
     <button class="btn-main" id="restart">Сыграть ещё</button>
   </div>
 </div>
+
 <script>
 if(window.Telegram && window.Telegram.WebApp){
   const tg=window.Telegram.WebApp;
   tg.ready(); tg.expand();
   if(typeof tg.disableVerticalSwipes==='function') tg.disableVerticalSwipes();
 }
+
 const canvas=document.getElementById('board');
 const ctx=canvas.getContext('2d');
 const cols=22, rows=22;
 let cell=16, W=0, H=0;
+
 function resizeCanvas(){
   const holder=document.querySelector('.board-holder');
   const size=Math.floor(Math.min(holder.clientWidth, holder.clientHeight));
@@ -99,18 +218,28 @@ function resizeCanvas(){
   W=px; H=px;
 }
 window.addEventListener('resize', resizeCanvas);
+
 const BASE_SPEED=170, MIN_SPEED=90, SPEED_STEP=10, APPLES_PER_LEVEL=5;
+
+// Палитры адаптированы под цветовую схему меню
 const PALETTES=[
-  ['#1E9E5E','#7BE3A6'], ['#1B7FA8','#8FD6F5'], ['#7647B8','#C8A9F0'],
-  ['#C2507A','#F5AFC6'], ['#C97A1E','#FFCB80'], ['#B8367D','#F0A0C8']
+  ['#62bc76','#b8f0c4'],  // зелёный (c-green из меню)
+  ['#55d8df','#b4f4f7'],  // циан
+  ['#df5b9f','#f5b8d8'],  // розовый
+  ['#f3bc37','#fde89a'],  // золото
+  ['#4faec7','#a8dff0'],  // синий (c-blue)
+  ['#a66da4','#dbb8da'],  // фиолет (c-purple)
 ];
+
 let snake, dir, nextDir, food, score, alive, loopId, level, speed, particles, foodPulse, palette, glowPulse;
 let paused=false;
+
 function reset(){
   resizeCanvas();
   snake=[{x:11,y:11},{x:10,y:11},{x:9,y:11}];
   dir={x:1,y:0}; nextDir=dir;
-  score=0; alive=true; paused=false; level=1; speed=BASE_SPEED; particles=[]; foodPulse=0; glowPulse=0;
+  score=0; alive=true; paused=false; level=1; speed=BASE_SPEED;
+  particles=[]; foodPulse=0; glowPulse=0;
   palette=PALETTES[0];
   document.getElementById('score').textContent=score;
   document.getElementById('levelLabel').textContent='Уровень '+level;
@@ -120,6 +249,7 @@ function reset(){
   loopId=setInterval(tick,speed);
   requestAnimationFrame(render);
 }
+
 function updateLevel(){
   const newLevel=Math.floor(score/APPLES_PER_LEVEL)+1;
   if(newLevel!==level){
@@ -131,18 +261,18 @@ function updateLevel(){
     if(!paused) loopId=setInterval(tick,speed);
   }
 }
+
 function placeFood(){
   while(true){
     const p={x:Math.floor(Math.random()*cols),y:Math.floor(Math.random()*rows)};
     if(!snake.some(s=>s.x===p.x&&s.y===p.y)){food=p;return;}
   }
 }
+
 function tick(){
   if(paused || !alive) return;
   dir=nextDir;
   const head={x:snake[0].x+dir.x,y:snake[0].y+dir.y};
-  // ФИКС: если змейка не ест яблоко, хвост освобождает клетку в этот же ход —
-  // заходить на неё головой законно, поэтому последний сегмент исключаем из проверки
   const willEat = !!food && head.x===food.x && head.y===food.y;
   const body = willEat ? snake : snake.slice(0,-1);
   if(head.x<0||head.y<0||head.x>=cols||head.y>=rows||body.some(s=>s.x===head.x&&s.y===head.y)){
@@ -155,10 +285,15 @@ function tick(){
     scoreEl.textContent=score;
     scoreEl.classList.add('bump');
     setTimeout(()=>scoreEl.classList.remove('bump'),200);
-    for(let i=0;i<14;i++) particles.push({x:food.x*cell+cell/2,y:food.y*cell+cell/2,vx:(Math.random()-0.5)*3.4,vy:(Math.random()-0.5)*3.4,life:22,color:palette[1]});
+    for(let i=0;i<14;i++) particles.push({
+      x:food.x*cell+cell/2, y:food.y*cell+cell/2,
+      vx:(Math.random()-0.5)*3.4, vy:(Math.random()-0.5)*3.4,
+      life:22, color:palette[1]
+    });
     placeFood(); updateLevel();
   } else { snake.pop(); }
 }
+
 function render(){
   foodPulse+=0.15; glowPulse+=0.08;
   particles.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.life--;});
@@ -167,40 +302,65 @@ function render(){
   if(paused) drawPauseOverlay();
   if(alive) requestAnimationFrame(render);
 }
+
 function gameOver(){
   alive=false; clearInterval(loopId); loopId=null;
   document.getElementById('finalScore').textContent='Счёт: '+score;
   document.getElementById('overlay').classList.add('show');
 }
+
 function draw(){
   ctx.clearRect(0,0,W,H);
-  ctx.fillStyle='#F5FFF9'; ctx.fillRect(0,0,W,H);
-  ctx.fillStyle='rgba(53,197,122,0.06)';
-  for(let r=0;r<rows;r++) for(let c=0;c<cols;c++) if((r+c)%2===0) ctx.fillRect(c*cell,r*cell,cell,cell);
+
+  // Фон — тёмный, в тон меню
+  ctx.fillStyle='#111d2d';
+  ctx.fillRect(0,0,W,H);
+
+  // Шахматная сетка — едва заметная, тёмнее фона
+  ctx.fillStyle='rgba(255,245,207,0.025)';
+  for(let r=0;r<rows;r++)
+    for(let c=0;c<cols;c++)
+      if((r+c)%2===0) ctx.fillRect(c*cell,r*cell,cell,cell);
+
+  // Яблоко
   const pulse=Math.sin(foodPulse)*1.5;
   ctx.fillStyle=palette[0];
+  ctx.shadowColor=palette[0];
+  ctx.shadowBlur=8;
   ctx.beginPath();
   ctx.arc(food.x*cell+cell/2, food.y*cell+cell/2, cell/2.4+pulse, 0, Math.PI*2);
   ctx.fill();
+  ctx.shadowBlur=0;
+
+  // Хвостик яблока
   ctx.fillStyle='#5A8A3D';
   ctx.fillRect(food.x*cell+cell/2-1, food.y*cell+2, 2, 4);
+
+  // Частицы
   particles.forEach(p=>{
     ctx.globalAlpha=Math.max(0,p.life/22);
     ctx.fillStyle=p.color;
     ctx.beginPath(); ctx.arc(p.x,p.y,2.4,0,Math.PI*2); ctx.fill();
     ctx.globalAlpha=1;
   });
+
+  // Свечение вокруг головы
   const headGlow=Math.sin(glowPulse)*3+6;
   if(snake.length){
     const h=snake[0];
     ctx.save();
-    ctx.globalAlpha=0.25;
-    ctx.fillStyle=palette[1];
+    ctx.globalAlpha=0.3;
+    ctx.fillStyle=palette[0];
+    ctx.shadowColor=palette[0];
+    ctx.shadowBlur=14;
     ctx.beginPath();
     ctx.arc(h.x*cell+cell/2, h.y*cell+cell/2, cell/2+headGlow, 0, Math.PI*2);
     ctx.fill();
+    ctx.shadowBlur=0;
     ctx.restore();
   }
+
+  // Тело змейки
   snake.forEach((s,i)=>{
     const t=i/Math.max(1,snake.length-1);
     const c1=hexToRgb(palette[0]), c2=hexToRgb(palette[1]);
@@ -208,10 +368,12 @@ function draw(){
     const g=Math.round(c1[1]+(c2[1]-c1[1])*t);
     const b=Math.round(c1[2]+(c2[2]-c1[2])*t);
     ctx.fillStyle=`rgb(${r},${g},${b})`;
-    const rad = i===0 ? 7 : 5;
+    const rad=i===0?7:5;
     roundRect(s.x*cell+1,s.y*cell+1,cell-2,cell-2,rad);
     ctx.fill();
   });
+
+  // Глаза змейки
   if(snake.length){
     const h=snake[0];
     const cx=h.x*cell+cell/2, cy=h.y*cell+cell/2;
@@ -219,45 +381,53 @@ function draw(){
     ctx.fillStyle='#fff';
     ctx.beginPath(); ctx.arc(cx+ox-dir.y*4,cy+oy+dir.x*4,2.6,0,Math.PI*2); ctx.fill();
     ctx.beginPath(); ctx.arc(cx+ox+dir.y*4,cy+oy-dir.x*4,2.6,0,Math.PI*2); ctx.fill();
-    ctx.fillStyle='#1E4635';
+    ctx.fillStyle=palette[0]==='#f3bc37'?'#14202b':'#08111d';
     ctx.beginPath(); ctx.arc(cx+ox-dir.y*4,cy+oy+dir.x*4,1.2,0,Math.PI*2); ctx.fill();
     ctx.beginPath(); ctx.arc(cx+ox+dir.y*4,cy+oy-dir.x*4,1.2,0,Math.PI*2); ctx.fill();
   }
 }
+
 function drawPauseOverlay(){
-  ctx.fillStyle='rgba(0,0,0,0.45)';
+  ctx.fillStyle='rgba(8,17,29,0.72)';
   ctx.fillRect(0,0,W,H);
-  ctx.fillStyle='#fff';
-  ctx.font='bold '+(cell*1.9)+'px "Baloo 2", sans-serif';
+  ctx.fillStyle=palette[1];
+  ctx.font='bold '+(cell*1.9)+'px "Russo One", sans-serif';
   ctx.textAlign='center';
-  ctx.fillText('Пауза', W/2, H/2);
-  ctx.font='bold '+(cell*0.6)+'px "Nunito", sans-serif';
-  ctx.fillText('Нажми на паузу ещё раз', W/2, H/2+cell*1.2);
+  ctx.shadowColor=palette[0]; ctx.shadowBlur=12;
+  ctx.fillText('ПАУЗА', W/2, H/2);
+  ctx.shadowBlur=0;
+  ctx.fillStyle='rgba(255,245,207,0.7)';
+  ctx.font=(cell*0.6)+'px "Rubik", sans-serif';
+  ctx.fillText('Нажми паузу ещё раз', W/2, H/2+cell*1.2);
 }
+
 function hexToRgb(hex){ const n=parseInt(hex.slice(1),16); return [(n>>16)&255,(n>>8)&255,n&255]; }
 function roundRect(x,y,w,h,r){
   ctx.beginPath();
   ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
   ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
 }
+
 function setDir(x,y){
   if(paused || !alive) return;
   if(dir.x===-x&&dir.y===-y) return;
   nextDir={x,y};
 }
+
 document.getElementById('pauseBtn').onclick=()=>{
   if(!alive) return;
   paused=!paused;
   if(paused){ clearInterval(loopId); loopId=null; }
-  else { loopId=setInterval(tick,speed); }
+  else { loopId=setInterval(tick,speed); requestAnimationFrame(render); }
 };
+
 document.addEventListener('keydown',e=>{
-  if(e.key==='ArrowUp') setDir(0,-1);
-  if(e.key==='ArrowDown') setDir(0,1);
-  if(e.key==='ArrowLeft') setDir(-1,0);
+  if(e.key==='ArrowUp')    setDir(0,-1);
+  if(e.key==='ArrowDown')  setDir(0,1);
+  if(e.key==='ArrowLeft')  setDir(-1,0);
   if(e.key==='ArrowRight') setDir(1,0);
 });
-// Тап или свайп — определяем направление относительно головы змейки
+
 let touchStartX=0, touchStartY=0, lastTouchAt=0;
 function steerToward(clientX, clientY){
   const rect=canvas.getBoundingClientRect();
@@ -281,12 +451,13 @@ canvas.addEventListener('touchend',e=>{
     steerToward(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
   }
 },{passive:true});
-// ФИКС: на мобильных браузер шлёт синтетический click следом за touchend — гасим дубль
 canvas.addEventListener('click',e=>{
   if(Date.now()-lastTouchAt < 700) return;
   steerToward(e.clientX, e.clientY);
 });
+
 document.getElementById('restart').onclick=reset;
+
 if(document.readyState==='complete' || document.readyState==='interactive') reset();
 else window.addEventListener('DOMContentLoaded', reset);
 </script>
