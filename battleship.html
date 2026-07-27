@@ -125,7 +125,15 @@ body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;opa
   .code-display{font-family:'Russo One',sans-serif;font-weight:800;font-size:30px;letter-spacing:6px;color:var(--navy-dark);
     background:#E1EBF5;border-radius:14px;padding:12px;margin-bottom:10px;}
   .close-x{position:absolute;top:12px;right:16px;font-size:19px;color:var(--ink-soft);background:none;border:none;}
-  /* ---------- Панель эмодзи-реакций ---------- */
+  
+/* ---------- Кнопка правил ---------- */
+.rules-btn{top:12px;right:62px;}
+.rules-modal-body{text-align:left;max-height:65vh;overflow-y:auto;padding-right:4px;}
+.rules-modal-body h3{font-family:'Russo One',sans-serif;font-size:13px;color:var(--navy-dark);margin:14px 0 5px;padding-bottom:3px;border-bottom:2px solid rgba(14,42,61,0.12);}
+.rules-modal-body h3:first-child{margin-top:0;}
+.rules-modal-body p,.rules-modal-body li{font-size:12.5px;color:#3a4a58;line-height:1.55;margin:3px 0;}
+.rules-modal-body ul{margin:4px 0 4px 14px;padding:0;}
+/* ---------- Панель эмодзи-реакций ---------- */
   .react-bar{display:none;justify-content:center;gap:6px;flex-wrap:wrap;margin:2px 0 10px;}
   .react-bar.show{display:flex;}
   .react-btn{width:40px;height:40px;border-radius:50%;border:2px solid #5B8EB5;background:#fff;
@@ -151,6 +159,11 @@ body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;opa
     <path d="M60 20 L32 50 L60 80" fill="none" stroke="#fff" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>
 </a>
+<button class="icon-btn rules-btn" id="rulesBtn" aria-label="Правила">
+  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <text x="50" y="72" text-anchor="middle" font-size="68" font-family="serif" font-weight="bold" fill="#fff">?</text>
+  </svg>
+</button>
 <div class="react-layer" id="reactLayer"></div>
 <div class="wrap">
   <h1>🚢 Морской бой</h1>
@@ -1094,9 +1107,37 @@ function flyReaction(em){
     onlineOverlay.classList.add('show');
   }
 })();
+
+document.getElementById('rulesBtn').onclick=()=>document.getElementById('rulesOverlay').classList.add('show');
 window.addEventListener('resize', renderAll);
 renderAll();
 loadStats(updateStatsDisplay);
 </script>
+<div class="overlay" id="rulesOverlay">
+  <div class="modal" style="max-width:340px;">
+    <button class="close-x" onclick="document.getElementById('rulesOverlay').classList.remove('show')">✕</button>
+    <h2 style="margin-bottom:12px;">⚓ Правила</h2>
+    <div class="rules-modal-body">
+      <h3>🎯 Цель</h3>
+      <p>Потопить все корабли соперника раньше, чем он потопит твои.</p>
+      <h3>🚢 Флот</h3>
+      <ul>
+        <li>1 Линкор — 4 клетки</li>
+        <li>3 Крейсера — по 3 клетки</li>
+        <li>4 Эсминца — по 2 клетки</li>
+      </ul>
+      <h3>🗺️ Расстановка</h3>
+      <p>Расставь флот сам или нажми «Перемешать». Корабли не могут касаться друг друга даже по диагонали.</p>
+      <h3>🔫 Ход</h3>
+      <p>Тапни по клетке поля соперника. <b>💥 Попал</b> — ходишь снова. <b>🌊 Мимо</b> — ход переходит.</p>
+      <h3>☠️ Потопление</h3>
+      <p>Корабль потоплен, когда все его клетки подбиты. Вокруг него автоматически отмечаются промахи.</p>
+      <h3>⏱️ Таймер</h3>
+      <p>В онлайн-режиме на ход даётся <b>30 секунд</b>. Не успел — ход переходит к сопернику.</p>
+      <h3>😂 Реакции</h3>
+      <p>В онлайне можно отправлять эмодзи-реакции — они летят у обоих игроков.</p>
+    </div>
+  </div>
+</div>
 </body>
 </html>
