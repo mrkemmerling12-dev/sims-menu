@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Space Shooter</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Russo+One&family=Rubik:wght@600;700&display=swap" rel="stylesheet">
@@ -1391,6 +1393,7 @@ function startGame(startWave){
 
 function endGame(){
   localStorage.removeItem('ss_wave');
+  lbSubmitScore('shooter', score);
   gameActive=false;cancelAnimationFrame(frameId);
   if(score>highScore){highScore=score;localStorage.setItem('ss_hs',score);updateSkinsUI();}
   document.getElementById('finalScore').textContent=score.toLocaleString('ru');
