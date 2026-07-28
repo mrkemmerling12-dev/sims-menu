@@ -515,8 +515,10 @@ canvas.addEventListener('click',e=>{
 
   const moves=validMoves;
 
+  // определяем чьи шашки кликабельны
+  const myTurn_side = onlineMode ? (myColor==='red'?1:2) : 1;
   // клик по своей шашке
-  if(board[cr][cx]&&owns(board[cr][cx],1)&&(!chainPiece||(chainPiece.r===cr&&chainPiece.c===cx))){
+  if(board[cr][cx]&&owns(board[cr][cx],myTurn_side)&&(!chainPiece||(chainPiece.r===cr&&chainPiece.c===cx))){
     const hasMoves=moves.some(m=>m.fromR===cr&&m.fromC===cx);
     if(hasMoves){selected={r:cr,c:cx};draw();return;}
   }
@@ -530,7 +532,7 @@ canvas.addEventListener('click',e=>{
     }
   }
   // клик по другой своей шашке (смена выбора)
-  if(board[cr][cx]&&owns(board[cr][cx],1)&&!chainPiece){
+  if(board[cr][cx]&&owns(board[cr][cx],myTurn_side)&&!chainPiece){
     const hasMoves=moves.some(m=>m.fromR===cr&&m.fromC===cx);
     if(hasMoves){selected={r:cr,c:cx};draw();}
   }
@@ -547,6 +549,7 @@ function executeMove(m){
   renderLoop();
 }
 function _finishMove(m, piece) {
+  if(gameOver) return; // игра завершилась пока шла анимация
   board[m.fromR][m.fromC] = 0; // already cleared before slide
   if(m.capR!=null){
     animPieces.push({r:m.capR,c:m.capC,v:board[m.capR][m.capC],alpha:1});
@@ -578,10 +581,17 @@ function endTurn(){
   chainPiece=null;selected=null;
   if(onlineMode){
     const nextColor=currentTurn===1?'white':'red';
-    sendOnlineMove(board,nextColor);
+    // проверяем победу локально
+    const oppMoves=getValidMoves(currentTurn===1?2:1,board,null,null);
+    const iWon=oppMoves.length===0;
+    const winner=iWon?myColor:null;
+    sendOnlineMove(board,nextColor,winner);
     currentTurn=currentTurn===1?2:1;
-    validMoves=[];// ждём ответа соперника через Firebase
+    validMoves=[];
     updateHUD();draw();
+    if(iWon){
+      db.ref('ck_rooms/'+roomCode).update({winner:myColor,status:'finished'});
+    }
     return;
   }
   currentTurn=currentTurn===1?2:1;
@@ -852,19 +862,23 @@ function startOnlineListener(code){
         document.getElementById('onlineBadge').innerHTML='<span class="online-badge">🟢 Онлайн · ты — '+(myColor==='red'?'🔴':'⚪')+' · соперник — '+opponentName+'</span>';
         initOnlineGame(data);return;
       }
-      // обновление доски от соперника
+      // синхронизируем доску и ход
       const incomingBoard=strToBoard(data.board);
       const incomingTurn=data.turn;
       const myTurnColor=myColor==='red'?'red':'white';
+      board=incomingBoard;
+      selected=null;chainPiece=null;slideAnim=null;
       if(incomingTurn===myTurnColor){
-        // пришёл наш ход — применяем доску соперника
-        board=incomingBoard;
+        // наш ход
         currentTurn=myColor==='red'?1:2;
         validMoves=getValidMoves(currentTurn,board,null,null);
-        selected=null;chainPiece=null;
-        updateHUD();draw();
-        updateReactBar();
+      } else {
+        // ход соперника — ждём
+        currentTurn=myColor==='red'?2:1;
+        validMoves=[];
       }
+      updateHUD();draw();
+      updateReactBar();
       if(data.winner){
         const iWon=(data.winner===myColor);
         showEnd(iWon?'🏆 Ты победил!':'💥 Ты проиграл!');
@@ -896,8 +910,10 @@ function isMyOnlineTurn(){
   return onlineMode&&((myColor==='red'&&currentTurn===1)||(myColor==='white'&&currentTurn===2));
 }
 
-function sendOnlineMove(newBoard,nextTurnColor){
-  db.ref('ck_rooms/'+roomCode).update({board:boardToStr(newBoard),turn:nextTurnColor,seq:(Date.now())});
+function sendOnlineMove(newBoard,nextTurnColor,winner){
+  const upd={board:boardToStr(newBoard),turn:nextTurnColor,seq:Date.now()};
+  if(winner) upd.winner=winner;
+  db.ref('ck_rooms/'+roomCode).update(upd);
 }
 
 // ── Реакции ──
@@ -943,12 +959,15 @@ function initBoardState(){
 // ── Кнопки режима ──
 document.getElementById('diffBar').style.display='flex';
 document.getElementById('modeBotBtn').onclick=()=>{
-  if(onlineMode){
-    onlineMode=false;if(roomRef)roomRef.off();roomRef=null;roomCode=null;myColor=null;
-    document.getElementById('onlineBadge').innerHTML='';updateReactBar();
-  }
+  onlineMode=false;
+  if(roomRef){roomRef.off();roomRef=null;}
+  roomCode=null;myColor=null;
+  document.getElementById('onlineBadge').innerHTML='';
+  document.getElementById('waitingOverlay').classList.remove('show');
+  document.getElementById('onlineOverlay').classList.remove('show');
   document.getElementById('modeBotBtn').className='mode-btn active-bot';
   document.getElementById('modeOnlineBtn').className='mode-btn inactive';
+  updateReactBar();
   startGame();
 };
 
