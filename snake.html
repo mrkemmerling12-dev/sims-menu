@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Змейка</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Russo+One&family=Rubik:wght@500;600;700&display=swap" rel="stylesheet">
@@ -306,6 +308,7 @@ function render(){
 function gameOver(){
   alive=false; clearInterval(loopId); loopId=null;
   document.getElementById('finalScore').textContent='Счёт: '+score;
+  lbSubmitScore('snake', score);
   document.getElementById('overlay').classList.add('show');
 }
 
