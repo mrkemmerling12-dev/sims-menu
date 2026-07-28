@@ -682,31 +682,38 @@ function onKingPromotion(r, c) {
 }
 let kingPopCells = []; // [{r,c,t}]
 
-// ── Minimax with time limit ──
+// ── Minimax with TT + move ordering ──
 let minimaxDeadline = 0;
+const ttable = new Map();
+function orderMoves(moves, b){
+  return moves.slice().sort((a,z)=>{
+    const as=(a.capR!=null?10:0)+(isKing(b[a.fromR]?.[a.fromC]||0)?2:0);
+    const zs=(z.capR!=null?10:0)+(isKing(b[z.fromR]?.[z.fromC]||0)?2:0);
+    return zs-as;
+  });
+}
 function minimax(b, depth, alpha, beta, maximizing) {
-  if(performance.now() > minimaxDeadline) return evaluate(b); // time limit
+  if(performance.now() > minimaxDeadline) return evaluate(b);
   const turn = maximizing ? 2 : 1;
   const moves = getValidMoves(turn, b, null, null);
   if(depth === 0 || !moves.length) return evaluate(b);
+  const key = b.map(r=>r.join('')).join('|')+depth+(maximizing?'m':'n');
+  if(ttable.has(key)){const c=ttable.get(key);if(c.d>=depth) return c.v;}
+  const ordered = orderMoves(moves, b);
   if(maximizing) {
     let best = -Infinity;
-    for(const m of moves) {
-      const nb = applyMove(m, b);
-      best = Math.max(best, minimax(nb, depth-1, alpha, beta, false));
-      alpha = Math.max(alpha, best);
-      if(beta <= alpha) break;
+    for(const m of ordered) {
+      best = Math.max(best, minimax(applyMove(m,b), depth-1, alpha, beta, false));
+      alpha = Math.max(alpha, best); if(beta <= alpha) break;
     }
-    return best;
+    ttable.set(key,{v:best,d:depth}); return best;
   } else {
     let best = Infinity;
-    for(const m of moves) {
-      const nb = applyMove(m, b);
-      best = Math.min(best, minimax(nb, depth-1, alpha, beta, true));
-      beta = Math.min(beta, best);
-      if(beta <= alpha) break;
+    for(const m of ordered) {
+      best = Math.min(best, minimax(applyMove(m,b), depth-1, alpha, beta, true));
+      beta = Math.min(beta, best); if(beta <= alpha) break;
     }
-    return best;
+    ttable.set(key,{v:best,d:depth}); return best;
   }
 }
 
@@ -715,7 +722,7 @@ function botMove(){
   const moves=getValidMoves(2,board,null,null);
   if(!moves.length){showEnd('🔴 Ты победил!');return;}
   let best=-Infinity,bestMove=moves[0];
-  const depth=BOT_DEPTH; minimaxDeadline=performance.now()+(depth<=2?600:depth<=4?1200:2200);
+  const depth=BOT_DEPTH; minimaxDeadline=performance.now()+(depth<=2?700:depth<=4?1600:3000); ttable.clear();
   for(const m of moves){
     const nb=applyMove(m,board);
     const score=minimax(nb,depth-1,-Infinity,Infinity,false);
@@ -849,6 +856,18 @@ document.getElementById('shareCodeBtn').onclick=()=>{
   else navigator.clipboard.writeText(text);}catch(e){}
 };
 
+function detectMove(prevB, nextB){
+  let from=null,to=null;
+  for(let r=0;r<N;r++) for(let c=0;c<N;c++){
+    if(prevB[r][c]!==0 && nextB[r][c]===0 && !from) from={r,c};
+    if(prevB[r][c]===0 && nextB[r][c]!==0) to={r,c};
+  }
+  if(!from||!to) return null;
+  const dr=to.r-from.r, dc=to.c-from.c;
+  const cap=(Math.abs(dr)===2&&Math.abs(dc)===2)?{r:from.r+dr/2,c:from.c+dc/2}:null;
+  return {fromR:from.r,fromC:from.c,toR:to.r,toC:to.c,capR:cap?cap.r:null,capC:cap?cap.c:null};
+}
+
 function startOnlineListener(code){
   roomRef=db.ref('ck_rooms/'+code);
   roomRef.on('value',snap=>{
@@ -866,19 +885,40 @@ function startOnlineListener(code){
       const incomingBoard=strToBoard(data.board);
       const incomingTurn=data.turn;
       const myTurnColor=myColor==='red'?'red':'white';
-      board=incomingBoard;
-      selected=null;chainPiece=null;slideAnim=null;
-      if(incomingTurn===myTurnColor){
-        // наш ход
+      const isNowMyTurn=incomingTurn===myTurnColor;
+      if(!isNowMyTurn){
+        // анимируем ход соперника
+        const prevB=board.map(r=>r.slice());
+        const mv=detectMove(prevB,incomingBoard);
+        if(mv){
+          const piece=prevB[mv.fromR][mv.fromC];
+          // убираем фишку для анимации
+          board=prevB.map(r=>r.slice());
+          board[mv.fromR][mv.fromC]=0;
+          if(mv.capR!=null) board[mv.capR][mv.capC]=0;
+          slideAnim=null;
+          animateSlide(mv.fromR,mv.fromC,mv.toR,mv.toC,piece,()=>{
+            board=incomingBoard;
+            currentTurn=myColor==='red'?1:2;
+            validMoves=getValidMoves(currentTurn,board,null,null);
+            selected=null;chainPiece=null;
+            updateHUD();draw();updateReactBar();
+          });
+          renderLoop();
+        } else {
+          board=incomingBoard;
+          selected=null;chainPiece=null;slideAnim=null;
+          currentTurn=myColor==='red'?2:1;
+          validMoves=[];
+          updateHUD();draw();updateReactBar();
+        }
+      } else {
+        board=incomingBoard;
+        selected=null;chainPiece=null;slideAnim=null;
         currentTurn=myColor==='red'?1:2;
         validMoves=getValidMoves(currentTurn,board,null,null);
-      } else {
-        // ход соперника — ждём
-        currentTurn=myColor==='red'?2:1;
-        validMoves=[];
+        updateHUD();draw();updateReactBar();
       }
-      updateHUD();draw();
-      updateReactBar();
       if(data.winner){
         const iWon=(data.winner===myColor);
         showEnd(iWon?'🏆 Ты победил!':'💥 Ты проиграл!');
