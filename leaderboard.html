@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Таблица рекордов</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Russo+One&family=Rubik:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--space:#111d2d;--space-deep:#08111d;--ink:#14202b;--cream:#fff5cf;--paper:#f6e8bd;--red:#d8422c;--gold:#f3bc37;--cyan:#55d8df;--green:#62bc76;--pink:#df5b9f;--purple:#a87be0;}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;margin:0;padding:0;}
+html,body{min-height:100%;width:100%;font-family:'Rubik',sans-serif;color:var(--cream);background-color:var(--space-deep);background-image:radial-gradient(circle at 8% 12%,#f6e8bd 0 1px,transparent 1.8px),radial-gradient(circle at 82% 8%,#f3bc37 0 1.5px,transparent 2.2px),radial-gradient(circle at 13% 45%,#69dae0 0 1px,transparent 1.8px),radial-gradient(circle at 91% 52%,#f6e8bd 0 1px,transparent 1.8px),radial-gradient(circle at 25% 81%,#f3bc37 0 1.5px,transparent 2.2px),radial-gradient(circle at 72% 87%,#69dae0 0 1px,transparent 1.8px),linear-gradient(165deg,#1b3546 0%,var(--space) 52%,var(--space-deep) 100%);background-size:145px 155px,177px 173px,211px 218px,189px 199px,253px 239px,181px 201px,auto;}
+body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;opacity:0.18;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.52'/%3E%3C/svg%3E");}
+.wrap{position:relative;z-index:1;max-width:480px;margin:0 auto;padding:0 0 40px;}
+.back-btn{position:fixed;top:12px;left:12px;width:42px;height:42px;border-radius:50%;background:rgba(20,32,43,0.88);display:flex;align-items:center;justify-content:center;text-decoration:none;z-index:20;border:3px solid var(--ink);box-shadow:0 4px 0 var(--ink),0 6px 14px rgba(0,0,0,0.45);transition:transform .12s;}
+.back-btn:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ink);}
+.back-btn svg{width:20px;height:20px;}
+.header{padding:22px 16px 10px;text-align:center;margin-top:10px;}
+.header h1{font-family:'Russo One',sans-serif;font-size:clamp(22px,7vw,30px);color:var(--gold);-webkit-text-stroke:1.5px var(--ink);text-shadow:2px 2px 0 var(--ink),0 0 18px rgba(243,188,55,0.35);margin-bottom:4px;}
+.header p{font-size:12px;font-weight:600;color:rgba(255,245,207,0.5);letter-spacing:.3px;}
+.player-card{margin:12px 16px;padding:12px 16px;background:rgba(20,32,43,0.72);border:2px solid rgba(85,216,223,0.28);border-radius:14px;display:flex;align-items:center;gap:12px;}
+.player-avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--cyan),var(--purple));display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;border:2px solid var(--ink);}
+.player-name{font-family:'Russo One',sans-serif;font-size:14px;color:var(--cream);}
+.player-sub{font-size:11px;color:rgba(255,245,207,0.45);margin-top:2px;font-weight:600;}
+.tabs{display:flex;overflow-x:auto;gap:6px;padding:8px 16px;scrollbar-width:none;-webkit-overflow-scrolling:touch;}
+.tabs::-webkit-scrollbar{display:none;}
+.tab{flex-shrink:0;font-family:'Russo One',sans-serif;font-size:11px;padding:7px 14px;border-radius:20px;border:2px solid var(--ink);cursor:pointer;white-space:nowrap;transition:all .15s;background:rgba(20,32,43,0.72);color:rgba(255,245,207,0.6);box-shadow:0 2px 0 var(--ink);}
+.tab.active{background:var(--gold);color:var(--ink);box-shadow:0 3px 0 var(--ink);}
+.tab:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink);}
+.board{padding:0 16px;}
+.board-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.board-title{font-family:'Russo One',sans-serif;font-size:16px;color:var(--cream);}
+.metric-badge{background:rgba(85,216,223,0.12);border:1.5px solid rgba(85,216,223,0.3);color:var(--cyan);font-size:10px;font-weight:700;padding:3px 10px;border-radius:14px;}
+.row{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;margin-bottom:6px;background:rgba(20,32,43,0.55);border:1.5px solid rgba(255,245,207,0.06);}
+.row.me{background:rgba(243,188,55,0.1);border-color:rgba(243,188,55,0.35);}
+.row.top1{background:rgba(243,188,55,0.16);border-color:rgba(243,188,55,0.5);}
+.row.top2{background:rgba(192,192,192,0.08);border-color:rgba(192,192,192,0.28);}
+.row.top3{background:rgba(205,127,50,0.08);border-color:rgba(205,127,50,0.28);}
+.rank{font-family:'Russo One',sans-serif;font-size:15px;width:28px;text-align:center;flex-shrink:0;}
+.rank-medal{font-size:18px;}
+.row-avatar{width:34px;height:34px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px;border:2px solid var(--ink);}
+.row-name{flex:1;min-width:0;}
+.row-name .name{font-family:'Russo One',sans-serif;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.row-name .sub{font-size:10px;color:rgba(255,245,207,0.4);font-weight:600;margin-top:1px;}
+.row-score{font-family:'Russo One',sans-serif;font-size:15px;color:var(--gold);text-align:right;flex-shrink:0;}
+.row-score .unit{font-size:10px;color:rgba(255,245,207,0.45);font-weight:700;display:block;text-align:right;}
+.my-rank{margin:0 0 10px;padding:10px 14px;background:rgba(98,188,118,0.1);border:1.5px solid rgba(98,188,118,0.32);border-radius:12px;display:flex;align-items:center;gap:10px;}
+.my-rank .rn{font-family:'Russo One',sans-serif;font-size:22px;color:var(--green);}
+.my-rank .rt{font-size:12px;font-weight:700;color:rgba(255,245,207,0.65);}
+.my-rank .rs{font-size:12px;font-weight:700;color:var(--gold);margin-top:2px;}
+.empty{text-align:center;padding:32px 16px;font-size:13px;font-weight:600;color:rgba(255,245,207,0.38);}
+.spinner{width:30px;height:30px;border:3px solid rgba(255,245,207,0.08);border-top-color:var(--cyan);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.loading-wrap{text-align:center;padding:32px;}
+.divider{height:1px;background:rgba(255,245,207,0.06);margin:8px 16px 12px;}
+</style>
+</head>
+<body>
+<a class="back-btn" href="index.html">
+  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <path d="M60 20 L32 50 L60 80" fill="none" stroke="var(--cream)" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+</a>
+<div class="wrap">
+  <div class="header">
+    <h1>🏆 РЕКОРДЫ</h1>
+    <p>Топ-10 лучших игроков по каждой игре</p>
+  </div>
+  <div class="player-card" id="playerCard">
+    <div class="player-avatar" id="playerAvatar">👤</div>
+    <div>
+      <div class="player-name" id="playerName">Загрузка...</div>
+      <div class="player-sub" id="playerSub"></div>
+    </div>
+  </div>
+  <div class="tabs" id="tabBar"></div>
+  <div class="divider"></div>
+  <div class="board" id="board">
+    <div class="loading-wrap"><div class="spinner"></div><div class="empty">Загружаем рекорды...</div></div>
+  </div>
+</div>
+<script>
+if(window.Telegram?.WebApp){const tg=window.Telegram.WebApp;tg.ready();tg.expand();if(typeof tg.disableVerticalSwipes==='function')tg.disableVerticalSwipes();}
+const FB={apiKey:"AIzaSyCrJMG_08oGzYacC317lMYkWTyIiS0IHFA",authDomain:"sims-menu-games-2.firebaseapp.com",databaseURL:"https://sims-menu-games-2-default-rtdb.europe-west1.firebasedatabase.app",projectId:"sims-menu-games-2",storageBucket:"sims-menu-games-2.firebasestorage.app",messagingSenderId:"207186943278",appId:"1:207186943278:web:2214b83e6218b86baaaebf"};
+let db=null;
+try{firebase.initializeApp(FB);db=firebase.database();}catch(e){console.error(e);}
+
+function getMe(){
+  try{const u=window.Telegram?.WebApp?.initDataUnsafe?.user;if(u)return{id:String(u.id),name:u.first_name+(u.last_name?' '+u.last_name:''),username:u.username||''};}catch(e){}
+  let id=localStorage.getItem('lb_guest');if(!id){id='g_'+Math.random().toString(36).slice(2,10);localStorage.setItem('lb_guest',id);}
+  return{id,name:'Гость',username:''};
+}
+const ME=getMe();
+
+const GAMES=[
+  {id:'snake',     label:'🐍 Змейка',     field:'score', unit:'очков'},
+  {id:'tetris',    label:'🧱 Тетрис',      field:'score', unit:'очков'},
+  {id:'flappy',    label:'🐤 Флаппи',      field:'score', unit:'очков'},
+  {id:'shooter',   label:'🚀 Шутер',       field:'score', unit:'очков'},
+  {id:'checkers',  label:'♟️ Шашки',       field:'wins',  unit:'побед'},
+  {id:'battleship',label:'🚢 Морской бой', field:'wins',  unit:'побед'},
+  {id:'tictactoe', label:'⭕ Крестики',     field:'wins',  unit:'побед'},
+];
+
+const AVEMOJI=['🎮','🚀','🏆','⚡','🌟','💎','🔥','🎯','👾','🛸'];
+function avFor(id){return AVEMOJI[parseInt((id||'').replace(/\D/g,'').slice(-2)||'0')%AVEMOJI.length];}
+const AVCOL=['#62bc76','#55d8df','#f3bc37','#a87be0','#df5b9f','#d8422c','#4faec7'];
+
+let active=GAMES[0].id;
+
+// Player card
+(()=>{
+  document.getElementById('playerAvatar').textContent=avFor(ME.id);
+  document.getElementById('playerName').textContent=ME.name;
+  document.getElementById('playerSub').textContent=ME.username?'@'+ME.username:'Гость';
+})();
+
+// Tabs
+function renderTabs(){
+  const bar=document.getElementById('tabBar');bar.innerHTML='';
+  GAMES.forEach(g=>{
+    const b=document.createElement('button');
+    b.className='tab'+(g.id===active?' active':'');
+    b.textContent=g.label;
+    b.onclick=()=>{active=g.id;renderTabs();loadBoard(g.id);};
+    bar.appendChild(b);
+  });
+}
+
+// Board
+function loadBoard(gameId){
+  const board=document.getElementById('board');
+  board.innerHTML='<div class="loading-wrap"><div class="spinner"></div><div class="empty">Загружаем...</div></div>';
+  if(!db){board.innerHTML='<div class="empty">⚠️ База недоступна</div>';return;}
+  const g=GAMES.find(x=>x.id===gameId);
+  db.ref('leaderboard/'+gameId).orderByChild(g.field).limitToLast(10).once('value')
+    .then(snap=>{
+      const data=snap.val();
+      if(!data){
+        board.innerHTML=`<div class="board-header"><span class="board-title">${g.label}</span><span class="metric-badge">${g.unit}</span></div><div class="empty">🎮 Пока пусто. Будь первым!</div>`;
+        return;
+      }
+      const rows=Object.values(data).sort((a,b)=>(b[g.field]||0)-(a[g.field]||0)).slice(0,10);
+      renderBoard(g,rows);
+    })
+    .catch(()=>{board.innerHTML='<div class="empty">⚠️ Не удалось загрузить</div>';});
+}
+
+function renderBoard(g,rows){
+  const board=document.getElementById('board');
+  const medals=['🥇','🥈','🥉'];
+  const myIdx=rows.findIndex(r=>r.userId===ME.id);
+  let html=`<div class="board-header"><span class="board-title">${g.label}</span><span class="metric-badge">${g.unit}</span></div>`;
+  if(myIdx>=0){
+    html+=`<div class="my-rank"><span class="rn">#${myIdx+1}</span><div><div class="rt">Твоё место в рейтинге</div><div class="rs">${(rows[myIdx][g.field]||0).toLocaleString('ru')} ${g.unit}</div></div></div>`;
+  }
+  rows.forEach((r,i)=>{
+    const isMe=r.userId===ME.id;
+    const rank=i<3?`<span class="rank-medal">${medals[i]}</span>`:`<span class="rank" style="color:rgba(255,245,207,0.38)">${i+1}</span>`;
+    const cls=isMe?'row me':i===0?'row top1':i===1?'row top2':i===2?'row top3':'row';
+    const av=avFor(r.userId||'');
+    const col=AVCOL[i%AVCOL.length];
+    const name=(r.name||'Игрок').slice(0,22);
+    const val=(r[g.field]||0).toLocaleString('ru');
+    const sub=r.updatedAt?new Date(r.updatedAt).toLocaleDateString('ru-RU',{day:'numeric',month:'short'}):'';
+    html+=`<div class="${cls}">${rank}<div class="row-avatar" style="background:linear-gradient(135deg,${col},${col}66)">${av}</div><div class="row-name"><div class="name">${name}${isMe?' <span style="color:var(--gold);font-size:10px">● ты</span>':''}</div>${sub?`<div class="sub">${sub}</div>`:''}</div><div class="row-score">${val}<span class="unit">${g.unit}</span></div></div>`;
+  });
+  board.innerHTML=html;
+}
+
+renderTabs();
+loadBoard(active);
+</script>
+</body>
+</html>
