@@ -212,6 +212,37 @@ const firebaseConfig = {
 let fbApp=null, db=null, fbReady=false;
 try{ fbApp=firebase.initializeApp(firebaseConfig); db=firebase.database(); fbReady=true; }
 catch(e){ console.error('Firebase init error:', e); fbReady=false; }
+
+// ── Leaderboard ──
+const LB_FB_CFG={apiKey:"AIzaSyCrJMG_08oGzYacC317lMYkWTyIiS0IHFA",authDomain:"sims-menu-games-2.firebaseapp.com",databaseURL:"https://sims-menu-games-2-default-rtdb.europe-west1.firebasedatabase.app",projectId:"sims-menu-games-2",storageBucket:"sims-menu-games-2.firebasestorage.app",messagingSenderId:"207186943278",appId:"1:207186943278:web:2214b83e6218b86baaaebf"};
+let lbDb=null;
+(function initLbFb(){try{if(!firebase.apps.length)firebase.initializeApp(LB_FB_CFG);lbDb=firebase.database();}catch(e){}})();
+function lbGetMe(){
+  try{const u=window.Telegram?.WebApp?.initDataUnsafe?.user;if(u)return{id:String(u.id),name:u.first_name+(u.last_name?' '+u.last_name:'')};}catch(e){}
+  let id=localStorage.getItem('lb_guest');if(!id){id='g_'+Math.random().toString(36).slice(2,8);localStorage.setItem('lb_guest',id);}
+  return{id,name:'Гость'};
+}
+function lbSubmitScore(gameId,score){
+  if(!lbDb||!score||score<=0)return;
+  const me=lbGetMe();
+  const ref=lbDb.ref('leaderboard/'+gameId+'/'+me.id);
+  ref.once('value').then(snap=>{
+    const cur=snap.val();
+    if(!cur||score>(cur.score||0)){
+      ref.set({userId:me.id,name:me.name,score:score,updatedAt:Date.now()});
+    }
+  }).catch(()=>{});
+}
+function lbSubmitWin(gameId){
+  if(!lbDb)return;
+  const me=lbGetMe();
+  const ref=lbDb.ref('leaderboard/'+gameId+'/'+me.id);
+  ref.once('value').then(snap=>{
+    const cur=snap.val()||{};
+    ref.set({userId:me.id,name:me.name,wins:(cur.wins||0)+1,updatedAt:Date.now()});
+  }).catch(()=>{});
+}
+
 function getMyIdentity(){
   try{
     const u=window.Telegram&&window.Telegram.WebApp&&window.Telegram.WebApp.initDataUnsafe&&window.Telegram.WebApp.initDataUnsafe.user;
@@ -378,7 +409,8 @@ function onlineMove(i){
   })();
   const update={board:boardToString(newCells),turn:mySymbol==='X'?'O':'X'};
   if(res){
-    update.status='finished';update.winner=res.winner;update.winLine=res.line?res.line.join(','):'';
+    update.status='finished';update.winner=res.winner;
+    if(res.winner===mySymbol) lbSubmitWin('tictactoe');update.winLine=res.line?res.line.join(','):'';
     const newScores=Object.assign({},scores);
     if(res.winner==='D') newScores.D=(newScores.D||0)+1; else newScores[res.winner]=(newScores[res.winner]||0)+1;
     update.scores=newScores;
