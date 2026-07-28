@@ -158,7 +158,7 @@ canvas#board{display:block;border-radius:8px;box-shadow:0 8px 0 var(--ink),0 14p
   <div class="score-pill" id="scorePill">🔴 12 · ⚪ 12</div>
 </div>
 <div class="react-layer" id="reactLayer"></div>
-<div class="diff-bar" id="diffBar">
+<div class="diff-bar" id="diffBar" style="display:none;">
   <button class="diff-btn active" data-depth="2">🟢 Easy</button>
   <button class="diff-btn inactive" data-depth="4">🟡 Normal</button>
   <button class="diff-btn inactive" data-depth="6">🔴 Hard</button>
@@ -415,32 +415,83 @@ function updateHUD(){
 // --- Отрисовка ---
 function drawPiece(r,c,v,alpha){
   const x=c*SZ+SZ/2, y=r*SZ+SZ/2;
-  const rad=SZ*0.38;
+  const rad=SZ*0.4;
+  const isR=isRed(v), king=isKing(v);
   ctx.save();
   if(alpha!=null) ctx.globalAlpha=alpha;
-  const king=isKing(v);
-  const mainCol=isRed(v)?(king?C.redKing:C.red):(king?C.whiteKing:C.white);
-  const lightCol=isRed(v)?C.redLight:C.whiteLight;
-  // тень
-  ctx.beginPath();ctx.arc(x+2,y+3,rad,0,Math.PI*2);
-  ctx.fillStyle='rgba(0,0,0,0.35)';ctx.fill();
-  // тело
-  const grad=ctx.createRadialGradient(x-rad*0.3,y-rad*0.3,rad*0.1,x,y,rad);
-  grad.addColorStop(0,lightCol);grad.addColorStop(1,mainCol);
+
+  // Цвета
+  const colBase  = isR ? (king?'#e06020':'#c8251a') : (king?'#d4c060':'#e8e0cc');
+  const colMid   = isR ? (king?'#ff7a3a':'#e83028') : (king?'#fffad0':'#ffffff');
+  const colDark  = isR ? (king?'#7a2800':'#7a0e0a') : (king?'#8a7800':'#b0a890');
+  const colRim   = isR ? '#5a0a08' : '#8a8070';
+  const colShine = isR ? 'rgba(255,180,140,0.7)' : 'rgba(255,255,255,0.85)';
+  const glowCol  = isR ? 'rgba(220,60,40,0.55)' : 'rgba(200,190,160,0.4)';
+
+  // Внешнее свечение
+  ctx.shadowColor = glowCol;
+  ctx.shadowBlur  = SZ*0.35;
+
+  // Боковое ребро (3D эффект — нижний полукруг темнее)
+  const rimGrad = ctx.createLinearGradient(x,y-rad,x,y+rad);
+  rimGrad.addColorStop(0, colBase);
+  rimGrad.addColorStop(1, colDark);
+  ctx.beginPath();ctx.arc(x,y+SZ*0.05,rad,0,Math.PI*2);
+  ctx.fillStyle=rimGrad;ctx.fill();
+
+  // Тень под шашкой
+  ctx.shadowBlur=0;
+  ctx.beginPath();ctx.ellipse(x+SZ*0.04,y+rad*0.85,rad*0.82,rad*0.22,0,0,Math.PI*2);
+  ctx.fillStyle='rgba(0,0,0,0.38)';ctx.fill();
+
+  // Верхняя поверхность (основной диск, чуть выше)
+  if(rad<=0){ctx.restore();return;} // guard against zero/negative radius
+  ctx.shadowColor=glowCol; ctx.shadowBlur=SZ*0.25;
+  const topGrad=ctx.createRadialGradient(x-rad*0.25,y-rad*0.22,Math.max(0.01,rad*0.05),x,y,Math.max(0.01,rad*1.05));
+  topGrad.addColorStop(0,colMid);
+  topGrad.addColorStop(0.55,colBase);
+  topGrad.addColorStop(1,colDark);
   ctx.beginPath();ctx.arc(x,y,rad,0,Math.PI*2);
-  ctx.fillStyle=grad;ctx.fill();
-  // обводка
-  ctx.strokeStyle=C.ink;ctx.lineWidth=2;ctx.stroke();
-  // блик
-  ctx.beginPath();ctx.arc(x-rad*0.28,y-rad*0.28,rad*0.22,0,Math.PI*2);
-  ctx.fillStyle='rgba(255,255,255,0.45)';ctx.fill();
-  // дамка — корона
+  ctx.fillStyle=topGrad;ctx.fill();
+
+  // Ободок
+  ctx.shadowBlur=0;
+  ctx.strokeStyle=colRim;ctx.lineWidth=SZ*0.04;ctx.stroke();
+
+  // Внутренний кант
+  const rimR=rad*0.78;
+  ctx.strokeStyle=isR?'rgba(255,140,120,0.35)':'rgba(255,255,255,0.3)';
+  ctx.lineWidth=SZ*0.03;
+  ctx.beginPath();ctx.arc(x,y,rimR,0,Math.PI*2);ctx.stroke();
+
+  // Главный блик (большой, эллипс)
+  const shineGrad=ctx.createRadialGradient(x-rad*0.28,y-rad*0.3,0,x-rad*0.22,y-rad*0.22,rad*0.55);
+  shineGrad.addColorStop(0,colShine);
+  shineGrad.addColorStop(1,'rgba(255,255,255,0)');
+  ctx.beginPath();ctx.ellipse(x-rad*0.22,y-rad*0.26,rad*0.48,rad*0.32,-0.5,0,Math.PI*2);
+  ctx.fillStyle=shineGrad;ctx.fill();
+
+  // Маленький точечный блик
+  ctx.beginPath();ctx.arc(x-rad*0.34,y-rad*0.36,rad*0.11,0,Math.PI*2);
+  ctx.fillStyle='rgba(255,255,255,0.9)';ctx.fill();
+
+  // Дамка — золотая корона + кольца
   if(king){
-    ctx.font=`bold ${Math.round(SZ*0.38)}px serif`;
+    // золотое кольцо
+    ctx.strokeStyle=isR?'#f3bc37':'#a07800';
+    ctx.lineWidth=SZ*0.055;
+    ctx.shadowColor=isR?'#f3bc37':'#d4a800'; ctx.shadowBlur=SZ*0.15;
+    ctx.beginPath();ctx.arc(x,y,rad*0.55,0,Math.PI*2);ctx.stroke();
+    ctx.shadowBlur=0;
+    // корона
+    ctx.font=`bold ${Math.round(SZ*0.32)}px serif`;
     ctx.textAlign='center';ctx.textBaseline='middle';
-    ctx.fillStyle=isRed(v)?'#fff5cf':'#14202b';
-    ctx.fillText('♛',x,y+1);
+    ctx.shadowColor='rgba(0,0,0,0.5)'; ctx.shadowBlur=3;
+    ctx.fillStyle=isR?'#ffe080':'#14202b';
+    ctx.fillText('♛',x,y+SZ*0.02);
+    ctx.shadowBlur=0;
   }
+
   ctx.restore();
 }
 
@@ -449,8 +500,14 @@ function draw(){
   ctx.clearRect(0,0,px,px);
   // клетки
   for(let r=0;r<N;r++) for(let c=0;c<N;c++){
-    ctx.fillStyle=(r+c)%2===0?C.light:C.dark;
+    const isDark=(r+c)%2!==0;
+    ctx.fillStyle=isDark?C.dark:C.light;
     ctx.fillRect(c*SZ,r*SZ,SZ,SZ);
+    // тонкая внутренняя обводка
+    if(isDark){
+      ctx.strokeStyle='rgba(0,0,0,0.18)';ctx.lineWidth=0.8;
+      ctx.strokeRect(c*SZ+0.5,r*SZ+0.5,SZ-1,SZ-1);
+    }
   }
   // подсветка выбранной
   if(selected){
@@ -496,7 +553,7 @@ function draw(){
     if(t >= 1) { const done = slideAnim.onDone; slideAnim = null; done && done(); }
   }
   // анимированные взятые (тают)
-  for(const a of animPieces) drawPiece(a.r,a.c,a.v,a.alpha);
+  for(const a of animPieces) if(a.alpha>0) drawPiece(a.r,a.c,a.v,Math.max(0,a.alpha));
   // must-capture highlight (drawn last so it's on top)
   if(!gameOver && currentTurn===1 && !onlineMode) highlightMustCapture(validMoves);
   if(!gameOver && onlineMode && isMyOnlineTurn()) highlightMustCapture(validMoves);
@@ -789,7 +846,8 @@ function haptic(type){
 // ── Leaderboard ──
 const LB_FB_CFG={apiKey:"AIzaSyCrJMG_08oGzYacC317lMYkWTyIiS0IHFA",authDomain:"sims-menu-games-2.firebaseapp.com",databaseURL:"https://sims-menu-games-2-default-rtdb.europe-west1.firebasedatabase.app",projectId:"sims-menu-games-2",storageBucket:"sims-menu-games-2.firebasestorage.app",messagingSenderId:"207186943278",appId:"1:207186943278:web:2214b83e6218b86baaaebf"};
 let lbDb=null;
-(function initLbFb(){try{if(!firebase.apps.length)firebase.initializeApp(LB_FB_CFG);lbDb=firebase.database();}catch(e){}})();
+function initLbFb(){try{if(typeof firebase!=='undefined'){if(!firebase.apps.length)firebase.initializeApp(LB_FB_CFG);lbDb=firebase.database();}}catch(e){}}
+if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',initLbFb);}else{initLbFb();}
 function lbGetMe(){
   try{const u=window.Telegram?.WebApp?.initDataUnsafe?.user;if(u)return{id:String(u.id),name:u.first_name+(u.last_name?' '+u.last_name:'')};}catch(e){}
   let id=localStorage.getItem('lb_guest');if(!id){id='g_'+Math.random().toString(36).slice(2,8);localStorage.setItem('lb_guest',id);}
@@ -903,10 +961,14 @@ function startOnlineListener(code){
   roomRef=db.ref('ck_rooms/'+code);
   roomRef.on('value',snap=>{
     const data=snap.val();if(!data)return;
+    if(!myColor)return; // guard: myColor must be set before processing
     if(data.status==='waiting'){document.getElementById('waitingStatus').textContent='⏳ Ждём соперника...';return;}
     if(data.status==='playing'||data.status==='started'){
-      if(document.getElementById('waitingOverlay').classList.contains('show')){
+      const waitingShown=document.getElementById('waitingOverlay').classList.contains('show');
+      // Init game when: creator sees 2nd player join (waitingOverlay shown) OR joiner first sees playing status
+      if(waitingShown||!onlineMode){
         document.getElementById('waitingOverlay').classList.remove('show');
+        document.getElementById('onlineOverlay').classList.remove('show');
         onlineMode=true;
         opponentName=myColor==='red'?(data.whiteName||'Соперник'):(data.redName||'Соперник');
         document.getElementById('onlineBadge').innerHTML='<span class="online-badge">🟢 Онлайн · ты — '+(myColor==='red'?'🔴':'⚪')+' · соперник — '+opponentName+'</span>';
@@ -1028,8 +1090,8 @@ function initBoardState(){
 }
 
 // ── Кнопки режима ──
-document.getElementById('diffBar').style.display='flex';
 document.getElementById('modeBotBtn').onclick=()=>{
+  document.getElementById('diffBar').style.display='flex';
   onlineMode=false;
   if(roomRef){roomRef.off();roomRef=null;}
   roomCode=null;myColor=null;
