@@ -576,7 +576,8 @@ function applyHitFlash(e){
   if(!e.hitFlash) return;
   ctx.globalCompositeOperation='source-atop';
   ctx.fillStyle=`rgba(255,255,255,${Math.min(1, e.hitFlash/6)})`;
-  ctx.fillRect(-e.w*0.8, -e.h*0.8, e.w*1.6, e.h*1.6);
+  // circle clip instead of rect to avoid square artifact
+  ctx.beginPath();ctx.arc(0,0,Math.max(e.w,e.h)*0.65,0,Math.PI*2);ctx.fill();
   ctx.globalCompositeOperation='source-over';
 }
 
@@ -937,10 +938,14 @@ function drawBoss(e){
     ctx.restore();
   }
 
-  // hit flash
-  ctx.save();
-  if(e.hitFlash>0){ctx.globalCompositeOperation='source-atop';ctx.fillStyle=`rgba(255,255,255,${Math.min(1,e.hitFlash/6)})`;ctx.fillRect(-w,-w,w*2,w*2);}
-  ctx.restore();
+  // hit flash — circle-clipped, no square artifact
+  if(e.hitFlash>0){
+    ctx.save();
+    ctx.globalCompositeOperation='source-atop';
+    ctx.fillStyle=`rgba(255,255,255,${Math.min(1,e.hitFlash/6)})`;
+    ctx.beginPath();ctx.arc(0,0,w*0.9,0,Math.PI*2);ctx.fill();
+    ctx.restore();
+  }
 
   // HP bar
   const bw=w*1.6;
@@ -968,9 +973,12 @@ function drawBullet(b){
   if(b.friendly){
     ctx.shadowColor=C.cyan;ctx.shadowBlur=10;
     if(b.type==='beam'){
-      ctx.fillStyle='#00cfff';ctx.shadowColor='#00cfff';ctx.shadowBlur=20;
-      ctx.fillRect(b.x-b.w/2,b.y-b.h/2,b.w,b.h);
-      ctx.fillStyle='rgba(255,255,255,0.85)';ctx.fillRect(b.x-1.5,b.y-b.h/2,3,b.h);
+      // Full-height laser beam from bullet pos to top of screen
+      const bh=b.y+10;
+      ctx.fillStyle='#00cfff';ctx.shadowColor='#00cfff';ctx.shadowBlur=22;
+      ctx.fillRect(b.x-b.w/2,0,b.w,bh);
+      ctx.fillStyle='rgba(200,255,255,0.9)';ctx.fillRect(b.x-2,0,4,bh);
+      ctx.fillStyle='rgba(255,255,255,0.6)';ctx.fillRect(b.x-0.8,0,1.6,bh);
     } else if(b.type==='laser'){
       ctx.fillStyle=C.cyan;ctx.fillRect(b.x-2,b.y-10,4,18);
       ctx.fillStyle='rgba(255,255,255,0.7)';ctx.fillRect(b.x-1,b.y-10,2,18);
@@ -1093,8 +1101,8 @@ function playerShoot(){
   const bx=player.x,by=player.y-player.h*0.52;
   const spd=14;
   if(activeBonuses.laser>0){
-    // непрерывный лазер-луч по центру
-    bullets.push({x:bx,y:by,vy:-spd,friendly:true,type:'beam',w:8,h:28,dmg:2});
+    // beam — один мощный луч от корабля до верха экрана
+    bullets.push({x:bx,y:by,vy:-spd*3,friendly:true,type:'beam',w:8,h:by+10,dmg:2});
   } else if(activeBonuses.penta>0){
     // 5 пушек
     const angles=[-1.1,-0.5,0,0.5,1.1];
@@ -1158,8 +1166,11 @@ function updateBonusBar(){
 function updateHUD(){
   const livesEl=document.getElementById('livesEl');
   livesEl.innerHTML='';
-  for(let i=0;i<3;i++){
-    const h=document.createElement('span');h.className='heart';h.textContent=i<lives?'❤️':'🖤';
+  const maxShow=Math.max(3,lives);
+  for(let i=0;i<maxShow;i++){
+    const h=document.createElement('span');h.className='heart';
+    h.textContent=i<lives?'❤️':'🖤';
+    h.style.fontSize=maxShow>5?'14px':'18px';
     livesEl.appendChild(h);
   }
   document.getElementById('scoreEl').textContent=score.toLocaleString('ru');
@@ -1354,7 +1365,7 @@ function loseLife(){
 
 function applyPickup(type){
   haptic('pickup');
-  if(type==='life'&&lives<5){lives++;}
+  if(type==='life'){lives=Math.min(lives+1,9);}
   else if(type==='triple'){activeBonuses.triple=60*10;activeBonuses.penta=0;activeBonuses.laser=0;}
   else if(type==='penta'){activeBonuses.penta=60*8;activeBonuses.triple=0;activeBonuses.laser=0;}
   else if(type==='laser'){activeBonuses.laser=60*7;activeBonuses.triple=0;activeBonuses.penta=0;}
@@ -1490,7 +1501,7 @@ function updateComboEl(){
 function initGame(startWave){
   player=makePlayer();
   bullets=[];enemies=[];enemyBullets=[];particles=[];pickups=[];
-  score=0;lives=3;wave=startWave||1;bossAlive=false;waveTimer=60;
+  score=0;lives=3;wave=startWave||1;bossAlive=false;waveTimer=60;comboMax=0;
   activeBonuses={triple:0,shield:0,rapid:0,penta:0,laser:0};
   combo=0;comboMax=0;comboTimer=0;multiplier=1;
   touchX=null;touchY=null;
@@ -1524,9 +1535,12 @@ function startGame(startWave){
 }
 
 function endGame(){
+  if(!gameActive) return; // prevent double-call
   localStorage.removeItem('ss_wave');
+  gameActive=false;paused=false;
+  if(frameId){cancelAnimationFrame(frameId);frameId=null;}
+  touchX=null;touchY=null; // release touch
   lbSubmitScore('shooter', score);
-  gameActive=false;paused=false;cancelAnimationFrame(frameId);
   document.getElementById('pauseScreen').classList.remove('show');
   if(score>highScore){highScore=score;localStorage.setItem('ss_hs',score);updateSkinsUI();}
   document.getElementById('finalScore').textContent=score.toLocaleString('ru');
