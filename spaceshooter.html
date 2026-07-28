@@ -156,7 +156,8 @@ canvas{display:block;touch-action:none;}
 <!-- Стартовый экран -->
 <div class="screen" id="startScreen">
   <h1>🚀 SPACE<br>SHOOTER</h1>
-  <button class="btn" id="startBtn">ИГРАТЬ</button>
+  <button class="btn" id="startBtn">НОВАЯ ИГРА</button>
+  <button class="btn btn-secondary" id="continueBtn" style="margin-top:8px;display:none;">▶ Продолжить (волна <span id="savedWaveEl">1</span>)</button>
   <button class="btn btn-secondary" id="skinsMenuBtn" style="margin-top:8px;font-size:13px;padding:9px 22px;">🚀 СКИНЫ</button>
   <button class="btn btn-secondary" id="howtoBtn" style="font-size:13px;padding:9px 22px;margin-top:6px;">КАК ИГРАТЬ</button>
 </div>
@@ -204,11 +205,48 @@ resize();
 const C={bg:'#08111d',star:'#fff5cf',cyan:'#55d8df',pink:'#df5b9f',gold:'#f3bc37',
   green:'#62bc76',red:'#d8422c',purple:'#a87be0',cream:'#fff5cf',ink:'#14202b'};
 
-// ── Звёзды ──
-let stars=[];
+// ── Фон ──
+let stars=[],nebulae=[],asteroids=[];
 function initStars(){
   stars=[];
-  for(let i=0;i<120;i++) stars.push({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.4+0.3,sp:Math.random()*0.6+0.15,tw:Math.random()*Math.PI*2});
+  for(let i=0;i<55;i++) stars.push({x:Math.random()*W,y:Math.random()*H,r:0.4+Math.random()*0.5,sp:0.06+Math.random()*0.08,tw:Math.random()*Math.PI*2,layer:0});
+  for(let i=0;i<40;i++) stars.push({x:Math.random()*W,y:Math.random()*H,r:0.7+Math.random()*0.7,sp:0.15+Math.random()*0.12,tw:Math.random()*Math.PI*2,layer:1});
+  for(let i=0;i<22;i++) stars.push({x:Math.random()*W,y:Math.random()*H,r:1.0+Math.random()*1.1,sp:0.28+Math.random()*0.2,tw:Math.random()*Math.PI*2,layer:2});
+  const nc=['rgba(85,216,223,','rgba(167,123,224,','rgba(223,91,159,','rgba(98,188,118,'];
+  nebulae=Array.from({length:5},(_,i)=>({x:Math.random()*W,y:Math.random()*H,r:70+Math.random()*110,color:nc[i%nc.length],sp:0.03+Math.random()*0.05,alpha:0.04+Math.random()*0.055}));
+  asteroids=[];
+  for(let i=0;i<7;i++) spawnAsteroid(true);
+}
+function spawnAsteroid(init){
+  const r=7+Math.random()*16;
+  asteroids.push({x:Math.random()*W,y:init?Math.random()*H:-r*2,r,sp:0.25+Math.random()*0.45,rot:Math.random()*Math.PI*2,rotV:(Math.random()-0.5)*0.035,vx:(Math.random()-0.5)*0.25,
+    pts:Array.from({length:7},(_,i)=>{const a=i*(Math.PI*2/7),rr=r*(0.68+Math.random()*0.42);return[Math.cos(a)*rr,Math.sin(a)*rr];})});
+}
+function drawBg(dt){
+  ctx.fillStyle=C.bg; ctx.fillRect(0,0,W,H);
+  nebulae.forEach(nb=>{
+    nb.y+=nb.sp*dt; if(nb.y>H+nb.r){nb.y=-nb.r;nb.x=Math.random()*W;}
+    const g=ctx.createRadialGradient(nb.x,nb.y,0,nb.x,nb.y,nb.r);
+    g.addColorStop(0,nb.color+nb.alpha+')'); g.addColorStop(1,nb.color+'0)');
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(nb.x,nb.y,nb.r,0,Math.PI*2); ctx.fill();
+  });
+  stars.forEach(s=>{
+    const sm=[0.28,0.6,1.0][s.layer];
+    s.y+=s.sp*sm*dt; s.tw+=0.03*dt; if(s.y>H) s.y=-4;
+    ctx.globalAlpha=(0.3+0.4*Math.sin(s.tw))*(0.5+s.layer*0.25);
+    ctx.fillStyle=C.star; ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2); ctx.fill();
+  });
+  ctx.globalAlpha=1;
+  asteroids.forEach(a=>{
+    a.y+=a.sp*dt; a.x+=a.vx*dt; a.rot+=a.rotV*dt;
+    if(a.y>H+a.r*2){a.y=-a.r*2;a.x=Math.random()*W;}
+    ctx.save(); ctx.translate(a.x,a.y); ctx.rotate(a.rot);
+    ctx.fillStyle='#22182e'; ctx.strokeStyle='#3d2a48'; ctx.lineWidth=1.2;
+    ctx.shadowColor='rgba(90,60,110,0.3)'; ctx.shadowBlur=5;
+    ctx.beginPath(); a.pts.forEach(([px,py],i)=>i===0?ctx.moveTo(px,py):ctx.lineTo(px,py));
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.restore();
+  });
 }
 
 // ── Игровое состояние ──
@@ -856,9 +894,10 @@ function drawPickup(pk){
 // ── Частицы ──
 function spawnExplosion(x,y,color,n=18){
   for(let i=0;i<n;i++){
-    const ang=Math.random()*Math.PI*2,sp=1.5+Math.random()*4.5;
-    particles.push({x,y,vx:Math.cos(ang)*sp,vy:Math.sin(ang)*sp,life:1,maxLife:0.6+Math.random()*0.5,color,r:2+Math.random()*3});
+    const ang=Math.random()*Math.PI*2,sp=2+Math.random()*5.5;
+    particles.push({x,y,vx:Math.cos(ang)*sp,vy:Math.sin(ang)*sp,life:1,maxLife:0.55+Math.random()*0.55,color,r:1.5+Math.random()*3.5,friction:0.96,isLine:Math.random()<0.38});
   }
+  for(let i=0;i<5;i++){const a=i*(Math.PI*2/5);particles.push({x,y,vx:Math.cos(a)*9,vy:Math.sin(a)*9,life:1,maxLife:0.18,color:'rgba(255,255,255,0.9)',r:1.8,friction:0.86,isLine:false});}
 }
 function spawnHit(x,y){
   for(let i=0;i<6;i++){
@@ -869,13 +908,14 @@ function spawnHit(x,y){
 
 // ── Спавн врагов ──
 function spawnWave(){
+  localStorage.setItem('ss_wave',wave);
   const isBossWave=wave%5===0;
   if(isBossWave){
     bossAlive=true;
     const hp=Math.floor(60+wave*8);
     enemies.push({
       type:'boss',x:W/2,y:-80,w:70,h:70,
-      hp,maxHp:hp,color:C.purple,
+      hp,maxHp:hp,color:C.purple,born:Date.now(),hitFlash:0,
       vx:0,vy:0.5,phase:0,
       shootTimer:0,shootInterval:Math.max(30, 90-wave*3),
       score:wave*200,
@@ -1014,17 +1054,7 @@ function gameLoop(ts){
   const dt=Math.min((ts-lastTime)/16.67,3);
   lastTime=ts;
 
-  // фон
-  ctx.fillStyle=C.bg;ctx.fillRect(0,0,W,H);
-
-  // звёзды
-  stars.forEach(s=>{
-    s.y+=s.sp*dt;s.tw+=0.04*dt;
-    if(s.y>H) s.y=-5;
-    ctx.globalAlpha=0.4+0.35*Math.sin(s.tw);
-    ctx.fillStyle=C.star;ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.fill();
-  });
-  ctx.globalAlpha=1;
+  drawBg(dt);
 
   // ── Игрок: движение к touch ──
   if(touchX!==null){
@@ -1055,15 +1085,15 @@ function gameLoop(ts){
     for(let i=enemies.length-1;i>=0;i--){
       const e=enemies[i];
       if(rectsOverlap(b.x,b.y,b.w||4,b.h||14,e.x,e.y,e.w,e.h)){
-        e.hp--;spawnHit(b.x,b.y);
+        e.hp--;e.hitFlash=6;spawnHit(b.x,b.y);
         if(e.hp<=0){
           spawnExplosion(e.x,e.y,e.color);
           score+=e.score*multiplier*(wave>5?Math.floor(wave/5):1);
-          if(e.type==='boss'){bossAlive=false;haptic('boss');}
-          // шанс дропа бонуса
-          if(Math.random()<Math.min(0.35, 0.15+wave*0.012)){
-            const pt=randomPickup();
-            pickups.push({x:e.x,y:e.y,vy:1.4,type:pt.id,color:pt.color});
+          if(e.type==='boss'){
+            bossAlive=false;haptic('boss');
+            for(let bd=0;bd<3;bd++){const pt=randomPickup();pickups.push({x:e.x+(bd-1)*28,y:e.y,vy:1.5,vx:(bd-1)*1.6,type:pt.id,color:pt.color});}
+          } else {
+            if(Math.random()<Math.min(0.35,0.15+wave*0.012)){const pt=randomPickup();pickups.push({x:e.x,y:e.y,vy:1.4,type:pt.id,color:pt.color});}
           }
           enemies.splice(i,1);
         }
@@ -1081,14 +1111,34 @@ function gameLoop(ts){
       e.x=W/2+Math.sin(e.phase)*W*0.32;
       if(e.y<H*0.18) e.y+=e.vy*dt;
       // движение вперёд-назад
+    } else if(e.dives){
+      if(!e.diveActive&&e.diveTimer>0) e.diveTimer-=dt;
+      if(!e.diveActive&&e.diveTimer<=0&&e.y>0&&e.y<H*0.45){
+        e.diveActive=true;e.divePhase=0;e.diveStartX=e.x;e.diveStartY=e.y;
+      }
+      if(e.diveActive){
+        e.divePhase+=0.022*dt;
+        const p=Math.min(e.divePhase,1),t1=1-p;
+        const cx1=e.diveStartX+(player.x-e.diveStartX)*0.3,cy1=e.diveStartY+H*0.28;
+        const cx2=player.x,cy2=player.y-50;
+        e.x=t1*t1*t1*e.diveStartX+3*t1*t1*p*cx1+3*t1*p*p*cx2+p*p*p*player.x;
+        e.y=t1*t1*t1*e.diveStartY+3*t1*t1*p*cy1+3*t1*p*p*cy2+p*p*p*(player.y+H*0.55);
+        if(p>=1){e.diveActive=false;e.y=H+80;}
+      } else {
+        e.phase+=0.025*dt;
+        e.x+=e.vx*dt+Math.sin(e.phase)*0.8;
+        e.y+=e.vy*dt;
+        if(e.x<e.w/2+4){e.x=e.w/2+4;e.vx=Math.abs(e.vx);}
+        if(e.x>W-e.w/2-4){e.x=W-e.w/2-4;e.vx=-Math.abs(e.vx);}
+      }
     } else {
       e.phase+=0.025*dt;
       e.x+=e.vx*dt+Math.sin(e.phase)*0.8;
       e.y+=e.vy*dt;
-      // отскок от краёв
       if(e.x<e.w/2+4){e.x=e.w/2+4;e.vx=Math.abs(e.vx);}
       if(e.x>W-e.w/2-4){e.x=W-e.w/2-4;e.vx=-Math.abs(e.vx);}
     }
+    if(e.hitFlash>0) e.hitFlash-=dt;
     // стрельба врагов
     e.shootTimer-=dt;
     if(e.shootTimer<=0){enemyShoot(e);e.shootTimer=e.shootInterval;}
@@ -1120,6 +1170,7 @@ function gameLoop(ts){
   // ── Подбираемые бонусы ──
   pickups=pickups.filter(pk=>{
     pk.y+=pk.vy*dt;
+    if(pk.vx) pk.x+=pk.vx*dt;
     drawPickup(pk);
     if(pk.y>H+30) return false;
     if(Math.hypot(pk.x-player.x,pk.y-player.y)<28){
@@ -1130,11 +1181,18 @@ function gameLoop(ts){
 
   // ── Частицы ──
   particles=particles.filter(p=>{
+    p.vx*=(p.friction||0.98);p.vy*=(p.friction||0.98);
     p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=(dt/p.maxLife/60)*0.7;
     if(p.life<=0) return false;
     ctx.globalAlpha=Math.max(0,p.life);
-    ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,p.r*p.life,0,Math.PI*2);ctx.fill();
-    ctx.globalAlpha=1;
+    ctx.shadowColor=p.color;ctx.shadowBlur=5;
+    if(p.isLine){
+      ctx.strokeStyle=p.color;ctx.lineWidth=Math.max(0.5,p.r*0.6);
+      ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x-p.vx*3,p.y-p.vy*3);ctx.stroke();
+    } else {
+      ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,Math.max(0.4,p.r*p.life),0,Math.PI*2);ctx.fill();
+    }
+    ctx.shadowBlur=0;ctx.globalAlpha=1;
     return true;
   });
 
@@ -1295,10 +1353,10 @@ function updateComboEl(){
   }
 }
 
-function initGame(){
+function initGame(startWave){
   player=makePlayer();
   bullets=[];enemies=[];enemyBullets=[];particles=[];pickups=[];
-  score=0;lives=3;wave=1;bossAlive=false;waveTimer=60;
+  score=0;lives=3;wave=startWave||1;bossAlive=false;waveTimer=60;
   activeBonuses={triple:0,shield:0,rapid:0,penta:0,laser:0};
   combo=0;comboMax=0;comboTimer=0;multiplier=1;
   touchX=null;touchY=null;
@@ -1307,10 +1365,10 @@ function initGame(){
   updateHUD();
 }
 
-function startGame(){
+function startGame(startWave){
   document.getElementById('startScreen').classList.add('hidden');
   document.getElementById('gameOverScreen').classList.add('hidden');
-  initGame();
+  initGame(startWave||1);
   // Рисуем фон пока идёт отсчёт, но враги не двигаются
   gameActive=false;
   lastTime=performance.now();
@@ -1332,6 +1390,7 @@ function startGame(){
 }
 
 function endGame(){
+  localStorage.removeItem('ss_wave');
   gameActive=false;cancelAnimationFrame(frameId);
   if(score>highScore){highScore=score;localStorage.setItem('ss_hs',score);updateSkinsUI();}
   document.getElementById('finalScore').textContent=score.toLocaleString('ru');
@@ -1353,8 +1412,15 @@ canvas.addEventListener('mousemove',e=>{if(e.buttons) {touchX=e.clientX;touchY=e
 canvas.addEventListener('mouseup',()=>{touchX=null;touchY=null;});
 
 // ── Кнопки ──
-document.getElementById('startBtn').onclick=startGame;
-document.getElementById('restartBtn').onclick=startGame;
+document.getElementById('startBtn').onclick=()=>startGame(1);
+document.getElementById('restartBtn').onclick=()=>startGame(1);
+const _sw=parseInt(localStorage.getItem('ss_wave')||'1');
+if(_sw>1&&document.getElementById('continueBtn')){
+  document.getElementById('continueBtn').style.display='inline-block';
+  if(document.getElementById('savedWaveEl')) document.getElementById('savedWaveEl').textContent=_sw;
+  document.getElementById('continueBtn').onclick=()=>startGame(_sw);
+}
+
 document.getElementById('howtoBtn').onclick=()=>{
   document.getElementById('startScreen').classList.add('hidden');
   document.getElementById('howtoScreen').classList.remove('hidden');
