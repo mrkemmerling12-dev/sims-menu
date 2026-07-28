@@ -1213,11 +1213,12 @@ function gameLoop(ts){
 }
 
 function loseLife(){
+  if(!gameActive||paused) return;
   combo=0;multiplier=1;
   lives--;haptic('hit');
-  player.invincible=120;
   spawnExplosion(player.x,player.y,C.red,12);
-  if(lives<=0) endGame();
+  if(lives<=0){endGame();return;}
+  player.invincible=120;
 }
 
 function applyPickup(type){
@@ -1258,7 +1259,7 @@ function runCountdown(onDone){
 
 // ── Пауза ──
 function togglePause(){
-  if(!gameActive) return;
+  if(!gameActive||lives<=0) return;
   paused=!paused;
   const ps=document.getElementById('pauseScreen');
   if(paused){ps.classList.add('show');}
@@ -1394,7 +1395,8 @@ function startGame(startWave){
 function endGame(){
   localStorage.removeItem('ss_wave');
   lbSubmitScore('shooter', score);
-  gameActive=false;cancelAnimationFrame(frameId);
+  gameActive=false;paused=false;cancelAnimationFrame(frameId);
+  document.getElementById('pauseScreen').classList.remove('show');
   if(score>highScore){highScore=score;localStorage.setItem('ss_hs',score);updateSkinsUI();}
   document.getElementById('finalScore').textContent=score.toLocaleString('ru');
   document.getElementById('waveReached').textContent=`Волна ${wave} · Рекорд: ${highScore.toLocaleString('ru')}${comboMax>=5?' · Комбо x'+comboMax:''}`;
