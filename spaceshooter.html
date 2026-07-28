@@ -1038,12 +1038,15 @@ function spawnWave(){
   if(isBossWave){
     bossAlive=true;
     const hp=Math.floor(60+wave*8);
+    const bossType=wave%15===0?'overlord':wave%10===0?'mothership':'destroyer';
+    const bossColors={destroyer:C.purple,mothership:'#df5b9f',overlord:'#f3bc37'};
+    const bossW=bossType==='mothership'?90:bossType==='overlord'?80:70;
     enemies.push({
-      type:'boss',x:W/2,y:-80,w:70,h:70,
-      hp,maxHp:hp,color:C.purple,born:Date.now(),hitFlash:0,
-      vx:0,vy:0.5,phase:0,
+      type:'boss',bossType,x:W/2,y:-90,w:bossW,h:bossW,
+      hp,maxHp:hp,color:bossColors[bossType],born:Date.now(),hitFlash:0,
+      vx:0,vy:0.5,phase:0,_spiralAngle:0,
       shootTimer:0,shootInterval:Math.max(30, 90-wave*3),
-      score:wave*200,
+      score:wave*(bossType==='overlord'?600:bossType==='mothership'?400:200),
     });
     showWaveFlash(`👾 БОСС ВОЛНЫ ${wave}!`);
   } else {
@@ -1111,12 +1114,17 @@ function enemyShoot(e){
   const dist=Math.hypot(dx,dy);
   const spd=e.type==='boss'?5.5:3.8;
   if(e.type==='boss'){
-    // 3 направления
-    const angles=[-0.35,0,0.35];
-    angles.forEach(da=>{
-      const ang=Math.atan2(dy,dx)+da;
-      enemyBullets.push({x:e.x,y:e.y+e.h*0.3,vx:Math.cos(ang)*spd,vy:Math.sin(ang)*spd,r:5});
-    });
+    const bt=e.bossType||'destroyer';
+    if(bt==='mothership'){
+      const n=8;for(let i=0;i<n;i++){const a=i*(Math.PI*2/n);enemyBullets.push({x:e.x,y:e.y,vx:Math.cos(a)*spd,vy:Math.sin(a)*spd,r:5});}
+    } else if(bt==='overlord'){
+      if(!e._spiralAngle)e._spiralAngle=0;
+      e._spiralAngle+=0.45;
+      for(let i=0;i<5;i++){const a=e._spiralAngle+i*(Math.PI*2/5);enemyBullets.push({x:e.x,y:e.y,vx:Math.cos(a)*(spd+1),vy:Math.sin(a)*(spd+1),r:6});}
+    } else {
+      const angles=[-0.35,0,0.35];
+      angles.forEach(da=>{const ang=Math.atan2(dy,dx)+da;enemyBullets.push({x:e.x,y:e.y+e.h*0.3,vx:Math.cos(ang)*spd,vy:Math.sin(ang)*spd,r:5});});
+    }
   } else {
     enemyBullets.push({x:e.x,y:e.y+e.h*0.3,vx:(dx/dist)*spd,vy:(dy/dist)*spd,r:5});
   }
@@ -1138,7 +1146,7 @@ function updateBonusBar(){
   bar.innerHTML='';
   Object.entries(activeBonuses).forEach(([k,v])=>{
     if(v>0){
-      const labels={triple:'⚡ Тройной',shield:'🛡 Щит',rapid:'🔥 Скорострел'};
+      const labels={triple:'⚡ Тройной',shield:'🛡 Щит',rapid:'🔥 Скорострел',penta:'💥 5 пушек',laser:'🔵 Лазер',bomb:'💣 Бомба'};
       const span=document.createElement('span');span.className='bonus-tag';
       span.textContent=`${labels[k]} ${Math.ceil(v/60)}с`;
       bar.appendChild(span);
