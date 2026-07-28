@@ -759,76 +759,199 @@ function drawEnemyC(e){
 function drawBoss(e){
   const t=Date.now()/800;
   const w=e.w;
-  ctx.save(); ctx.translate(e.x,e.y);
+  const bt=e.bossType||'destroyer';
+  ctx.save();
+  ctx.translate(e.x,e.y);
   ctx.translate(Math.sin(t*0.7)*4, Math.cos(t*0.5)*3);
+  ctx.shadowColor=e.color; ctx.shadowBlur=28;
 
-  ctx.shadowColor=e.color; ctx.shadowBlur=32;
-
-  // outer rotating ring of spikes
-  ctx.save(); ctx.rotate(t*0.4);
-  ctx.strokeStyle=e.color; ctx.lineWidth=2;
-  for(let i=0;i<8;i++){
-    const a=i*Math.PI/4;
-    const r1=w*0.52, r2=w*0.74;
-    ctx.beginPath();
-    ctx.moveTo(Math.cos(a)*r1, Math.sin(a)*r1);
-    ctx.lineTo(Math.cos(a)*r2, Math.sin(a)*r2);
-    ctx.stroke();
-    ctx.fillStyle=e.color;
-    ctx.beginPath(); ctx.arc(Math.cos(a)*r2, Math.sin(a)*r2, 3.5, 0, Math.PI*2); ctx.fill();
+  if(bt==='destroyer'){
+    // ── НЛО-РАЗРУШИТЕЛЬ: классическая тарелка с шипами ──
+    // вращающиеся шипы вокруг
+    ctx.save(); ctx.rotate(t*0.5);
+    for(let i=0;i<8;i++){
+      const a=i*Math.PI/4;
+      const r1=w*0.55, r2=w*0.82;
+      ctx.strokeStyle=e.color; ctx.lineWidth=2.5;
+      ctx.beginPath(); ctx.moveTo(Math.cos(a)*r1,Math.sin(a)*r1); ctx.lineTo(Math.cos(a)*r2,Math.sin(a)*r2); ctx.stroke();
+      // кончик шипа
+      ctx.fillStyle=e.color;
+      ctx.beginPath(); ctx.arc(Math.cos(a)*r2,Math.sin(a)*r2,4,0,Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+    // корпус тарелки — нижний диск
+    const dg=ctx.createRadialGradient(0,w*0.08,2,0,w*0.08,w*0.55);
+    dg.addColorStop(0,'rgba(255,255,255,0.18)'); dg.addColorStop(1,e.color+'44');
+    ctx.fillStyle=dg;
+    ctx.beginPath(); ctx.ellipse(0,w*0.06,w*0.55,w*0.18,0,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle=e.color; ctx.lineWidth=2.5;
+    ctx.beginPath(); ctx.ellipse(0,w*0.06,w*0.55,w*0.18,0,0,Math.PI*2); ctx.stroke();
+    // верхний купол
+    ctx.fillStyle=e.color+'55';
+    ctx.beginPath(); ctx.ellipse(0,-w*0.1,w*0.3,w*0.26,0,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle=e.color+'aa'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.ellipse(0,-w*0.1,w*0.3,w*0.26,0,0,Math.PI*2); ctx.stroke();
+    // вращающиеся огни по ободу
+    for(let i=0;i<10;i++){
+      const a=t*1.6+i*(Math.PI*2/10);
+      const lx=Math.cos(a)*w*0.5, ly=Math.sin(a)*w*0.12+w*0.06;
+      ctx.fillStyle=i%2===0?C.gold:'#ff4444';
+      ctx.shadowColor=ctx.fillStyle; ctx.shadowBlur=10;
+      ctx.beginPath(); ctx.arc(lx,ly,3,0,Math.PI*2); ctx.fill();
+    }
+    // пришелец внутри купола
+    const s2=w*0.038;
+    ctx.fillStyle='#5aff90'; ctx.shadowColor='#5aff90'; ctx.shadowBlur=12;
+    ctx.beginPath(); ctx.ellipse(0,-w*0.14,s2*2.6,s2*2,0,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#ff2200'; ctx.shadowBlur=8;
+    ctx.beginPath(); ctx.ellipse(-s2*1.0,-w*0.14,s2*0.8,s2*0.7,-0.3,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(s2*1.0,-w*0.14,s2*0.8,s2*0.7,0.3,0,Math.PI*2); ctx.fill();
+    // луч снизу
+    if(Math.sin(t*2.8)>0){
+      ctx.globalAlpha=0.06+0.08*Math.sin(t*3.5);
+      ctx.fillStyle=e.color;
+      ctx.beginPath(); ctx.moveTo(-w*0.2,w*0.22); ctx.lineTo(w*0.2,w*0.22); ctx.lineTo(w*0.55,w*0.9); ctx.lineTo(-w*0.55,w*0.9); ctx.closePath(); ctx.fill();
+      ctx.globalAlpha=1;
+    }
   }
-  ctx.restore();
 
-  // main hull — irregular polygon
-  ctx.fillStyle=e.color+'28'; ctx.strokeStyle=e.color; ctx.lineWidth=2.5;
-  ctx.beginPath();
-  const n=8;
-  for(let i=0;i<n;i++){
-    const a=i*(Math.PI*2/n)-Math.PI/2;
-    const r=w*(0.48+0.1*Math.sin(t*2+i*1.3));
-    if(i===0) ctx.moveTo(Math.cos(a)*r, Math.sin(a)*r);
-    else       ctx.lineTo(Math.cos(a)*r, Math.sin(a)*r);
+  else if(bt==='mothership'){
+    // ── МАТЕРИНСКИЙ КОРАБЛЬ: гигантская тарелка со щупальцами ──
+    // внешнее кольцо — вращается
+    ctx.save(); ctx.rotate(-t*0.3);
+    ctx.strokeStyle=e.color+'66'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.arc(0,0,w*0.78,0,Math.PI*2); ctx.stroke();
+    // спутники-дроны
+    for(let i=0;i<4;i++){
+      const a=t*0.8+i*(Math.PI/2);
+      const dx=Math.cos(a)*w*0.78, dy=Math.sin(a)*w*0.78;
+      ctx.fillStyle=e.color; ctx.shadowBlur=14;
+      ctx.beginPath(); ctx.arc(dx,dy,8,0,Math.PI*2); ctx.fill();
+      // окошко дрона
+      ctx.fillStyle='rgba(255,255,255,0.8)';
+      ctx.beginPath(); ctx.arc(dx,dy,4,0,Math.PI*2); ctx.fill();
+      // шипы на дроне
+      for(let j=0;j<4;j++){
+        const ja=j*(Math.PI/2);
+        ctx.strokeStyle=e.color; ctx.lineWidth=1.5;
+        ctx.beginPath(); ctx.moveTo(dx+Math.cos(ja)*5,dy+Math.sin(ja)*5); ctx.lineTo(dx+Math.cos(ja)*12,dy+Math.sin(ja)*12); ctx.stroke();
+      }
+    }
+    ctx.restore();
+    // основной диск
+    const mg=ctx.createRadialGradient(0,0,w*0.08,0,0,w*0.58);
+    mg.addColorStop(0,'rgba(255,255,255,0.12)'); mg.addColorStop(1,e.color+'55');
+    ctx.fillStyle=mg;
+    ctx.beginPath(); ctx.ellipse(0,0,w*0.58,w*0.2,0,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle=e.color; ctx.lineWidth=2.5;
+    ctx.beginPath(); ctx.ellipse(0,0,w*0.58,w*0.2,0,0,Math.PI*2); ctx.stroke();
+    // огни на ободу (12 шт, быстро вращаются)
+    for(let i=0;i<12;i++){
+      const a=t*2.2+i*(Math.PI*2/12);
+      ctx.fillStyle=i%3===0?C.gold:i%3===1?e.color:'rgba(255,255,255,0.9)';
+      ctx.shadowColor=ctx.fillStyle; ctx.shadowBlur=8;
+      ctx.beginPath(); ctx.arc(Math.cos(a)*w*0.52,Math.sin(a)*w*0.13,3.5,0,Math.PI*2); ctx.fill();
+    }
+    // купол с пришельцем-командиром
+    ctx.fillStyle=e.color+'44'; ctx.shadowBlur=20;
+    ctx.beginPath(); ctx.ellipse(0,-w*0.18,w*0.3,w*0.26,0,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle=e.color; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.ellipse(0,-w*0.18,w*0.3,w*0.26,0,0,Math.PI*2); ctx.stroke();
+    // большой пришелец
+    const cs=w*0.05;
+    ctx.fillStyle='#00ff88'; ctx.shadowColor='#00ff88'; ctx.shadowBlur=16;
+    ctx.beginPath(); ctx.ellipse(0,-w*0.2,cs*2.8,cs*2.2,0,0,Math.PI*2); ctx.fill();
+    // антенны
+    ctx.strokeStyle='#00ff88'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(-cs*1.2,-w*0.28); ctx.lineTo(-cs*1.8,-w*0.4); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cs*1.2,-w*0.28); ctx.lineTo(cs*1.8,-w*0.4); ctx.stroke();
+    ctx.fillStyle='#ffff00'; ctx.beginPath(); ctx.arc(-cs*1.8,-w*0.42,cs*0.8,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(cs*1.8,-w*0.42,cs*0.8,0,Math.PI*2); ctx.fill();
+    // злые глаза командира
+    ctx.fillStyle='#ff2200'; ctx.shadowColor='#ff0000'; ctx.shadowBlur=10;
+    ctx.beginPath(); ctx.ellipse(-cs,-w*0.2,cs*0.85,cs*0.65,-0.3,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(cs,-w*0.2,cs*0.85,cs*0.65,0.3,0,Math.PI*2); ctx.fill();
+    // луч захвата широкий
+    const ba=0.05+0.08*Math.sin(t*2.5);
+    ctx.globalAlpha=ba; ctx.fillStyle=e.color;
+    ctx.beginPath(); ctx.moveTo(-w*0.24,w*0.2); ctx.lineTo(w*0.24,w*0.2); ctx.lineTo(w*0.65,w*0.95); ctx.lineTo(-w*0.65,w*0.95); ctx.closePath(); ctx.fill();
+    ctx.globalAlpha=1;
   }
-  ctx.closePath(); ctx.fill(); ctx.stroke();
 
-  // inner rotating energy ring
-  ctx.save(); ctx.rotate(-t*0.9);
-  ctx.strokeStyle='rgba(255,255,255,0.3)'; ctx.lineWidth=2;
-  ctx.beginPath(); ctx.arc(0,0,w*0.3,0,Math.PI*2); ctx.stroke();
-  ctx.strokeStyle=e.color+'88'; ctx.lineWidth=1.5;
-  ctx.beginPath(); ctx.arc(0,0,w*0.38,0.5,Math.PI*1.6); ctx.stroke();
+  else if(bt==='overlord'){
+    // ── ПОВЕЛИТЕЛЬ: кристаллический инсектоид-гигант ──
+    // внешние крылья (4 штуки, полупрозрачные)
+    const wingPulse=0.3+0.2*Math.sin(t*4);
+    ctx.save(); ctx.rotate(Math.sin(t*3)*0.08);
+    [[-1,-1],[1,-1],[-1.2,0.3],[1.2,0.3]].forEach(([wx,wy])=>{
+      ctx.fillStyle=e.color+'33';
+      ctx.strokeStyle=e.color+'88'; ctx.lineWidth=1.5;
+      ctx.beginPath();
+      ctx.ellipse(wx*w*0.65,wy*w*0.45,w*0.36,w*0.18,wx>0?0.4:-0.4,0,Math.PI*2);
+      ctx.fill(); ctx.stroke();
+      // жилки крыла
+      ctx.strokeStyle=e.color+'55'; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(wx*w*0.9,wy*w*0.6); ctx.stroke();
+    });
+    ctx.restore();
+    // панцирь тела — многосегментный
+    // задняя часть
+    ctx.fillStyle=e.color+'44'; ctx.strokeStyle=e.color; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.ellipse(0,w*0.18,w*0.32,w*0.22,0,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    // средняя грудь
+    ctx.fillStyle=e.color+'66';
+    ctx.beginPath(); ctx.ellipse(0,0,w*0.28,w*0.26,0,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    // голова
+    ctx.fillStyle=e.color+'88';
+    ctx.beginPath(); ctx.ellipse(0,-w*0.28,w*0.22,w*0.2,0,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    // мандибулы
+    ctx.strokeStyle=e.color; ctx.lineWidth=2.5;
+    ctx.beginPath(); ctx.moveTo(-w*0.12,-w*0.38); ctx.lineTo(-w*0.3,-w*0.55); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(w*0.12,-w*0.38); ctx.lineTo(w*0.3,-w*0.55); ctx.stroke();
+    // лапы (6 штук)
+    const legAngles=[[-0.5,-0.05],[0.5,-0.05],[-0.7,0.1],[0.7,0.1],[-0.55,0.28],[0.55,0.28]];
+    ctx.strokeStyle=e.color+'cc'; ctx.lineWidth=2;
+    legAngles.forEach(([lx,ly])=>{
+      const ex=lx*w, ey=ly*w;
+      const tip=[ex*1.55+Math.sin(t*5+lx*3)*4, ey+Math.abs(lx)*w*0.38];
+      ctx.beginPath(); ctx.moveTo(0,ly*w*0.5); ctx.lineTo(ex,ey); ctx.lineTo(tip[0],tip[1]); ctx.stroke();
+    });
+    // глаза (составной взгляд)
+    const eyeGlow=0.6+0.4*Math.sin(t*6);
+    ctx.fillStyle=`rgba(255,${50+50*eyeGlow|0},0,0.95)`;
+    ctx.shadowColor='#ff3300'; ctx.shadowBlur=18;
+    // пара больших глаз
+    ctx.beginPath(); ctx.ellipse(-w*0.1,-w*0.28,w*0.1,w*0.08,0,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(w*0.1,-w*0.28,w*0.1,w*0.08,0,0,Math.PI*2); ctx.fill();
+    // ряд малых глаз (4 шт)
+    ctx.fillStyle=`rgba(255,200,0,${eyeGlow})`;
+    ctx.shadowColor='#ffcc00'; ctx.shadowBlur=8;
+    [-w*0.18,-w*0.06,w*0.06,w*0.18].forEach(ex=>{
+      ctx.beginPath(); ctx.arc(ex,-w*0.36,w*0.04,0,Math.PI*2); ctx.fill();
+    });
+    // пульсирующий кристалл в груди
+    ctx.save(); ctx.rotate(t*0.6);
+    const cs2=w*(0.12+0.03*Math.sin(t*4));
+    ctx.fillStyle=e.color; ctx.shadowColor=e.color; ctx.shadowBlur=24;
+    ctx.beginPath(); ctx.moveTo(0,-cs2); ctx.lineTo(cs2*0.6,0); ctx.lineTo(0,cs2); ctx.lineTo(-cs2*0.6,0); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+
+  // hit flash
+  ctx.save();
+  if(e.hitFlash>0){ctx.globalCompositeOperation='source-atop';ctx.fillStyle=`rgba(255,255,255,${Math.min(1,e.hitFlash/6)})`;ctx.fillRect(-w,-w,w*2,w*2);}
   ctx.restore();
-
-  // triple cannon emitters
-  [[-w*0.44,0],[w*0.44,0],[0,w*0.44]].forEach(([gx,gy],i)=>{
-    ctx.shadowBlur=16;
-    ctx.fillStyle='#0a0a1a';
-    ctx.beginPath(); ctx.arc(gx,gy,8,0,Math.PI*2); ctx.fill();
-    ctx.fillStyle=e.color;
-    ctx.beginPath(); ctx.arc(gx,gy,5,0,Math.PI*2); ctx.fill();
-    const pulse2=0.5+0.5*Math.sin(t*5+i*2);
-    ctx.fillStyle=`rgba(255,255,255,${pulse2})`;
-    ctx.beginPath(); ctx.arc(gx,gy,2.5,0,Math.PI*2); ctx.fill();
-  });
-
-  // central eye
-  ctx.shadowBlur=30;
-  const eyePulse=0.6+0.4*Math.sin(t*4);
-  ctx.fillStyle=`rgba(255,${Math.floor(30+20*eyePulse)},${Math.floor(30*eyePulse)},0.95)`;
-  ctx.beginPath(); ctx.arc(0,0,w*0.16,0,Math.PI*2); ctx.fill();
-  ctx.fillStyle='rgba(255,255,255,0.9)';
-  ctx.beginPath(); ctx.arc(0,0,w*0.07,0,Math.PI*2); ctx.fill();
-
-  ctx.save(); applyHitFlash(e); ctx.restore();
 
   // HP bar
-  const bw=w*1.5;
-  ctx.fillStyle='rgba(0,0,0,0.55)'; ctx.fillRect(-bw/2,-w*0.92,bw,10);
+  const bw=w*1.6;
+  ctx.globalAlpha=1; ctx.shadowBlur=0;
+  ctx.fillStyle='rgba(0,0,0,0.55)'; ctx.fillRect(-bw/2,-w*0.98,bw,10);
   const pct=e.hp/e.maxHp;
   ctx.fillStyle=pct>0.5?'#62bc76':pct>0.25?'#f3bc37':'#d8422c';
   ctx.shadowBlur=8; ctx.shadowColor=ctx.fillStyle;
-  ctx.fillRect(-bw/2,-w*0.92,bw*pct,10);
-  ctx.strokeStyle='rgba(255,255,255,0.2)'; ctx.lineWidth=1; ctx.strokeRect(-bw/2,-w*0.92,bw,10);
+  ctx.fillRect(-bw/2,-w*0.98,bw*pct,10);
+  ctx.strokeStyle='rgba(255,255,255,0.2)'; ctx.lineWidth=1; ctx.shadowBlur=0;
+  ctx.strokeRect(-bw/2,-w*0.98,bw,10);
   ctx.restore();
 }
 
